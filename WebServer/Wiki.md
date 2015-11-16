@@ -1,82 +1,88 @@
-# Ìá¹©¸øÖÕ¶ËµÄÖ¸ÁîAPI
+# æä¾›ç»™ç»ˆç«¯çš„æŒ‡ä»¤API
 
-±êÇ©£º Python ·şÎñÆ÷
+æ ‡ç­¾ï¼š Python æœåŠ¡å™¨
 
 ---
-`HOST = ipµØÖ·:8080`
-`API = api` Ä¬ÈÏ´øÉÏ
-Á´½Ó¸ñÊ½£º`HOST/API/¹¦ÄÜ`
-ÀıÈç http://192.168.1.1:8080/api/power?param=shutdown
+`HOST = ipåœ°å€:8080`<br />
+`API = api` é»˜è®¤å¸¦ä¸Š<br />
+é“¾æ¥æ ¼å¼ï¼š`HOST/API/åŠŸèƒ½`<br />
+ä¾‹å¦‚ http://192.168.1.1:8080/api/power?param=shutdown
 
-ÏÂÃæÁĞ³öÊ¹ÓÃµ½µÄAPI
+ä¸‹é¢åˆ—å‡ºä½¿ç”¨åˆ°çš„API
+* Api-1 è´¦å·ç®¡ç†(#api1)
+    * ç”¨æˆ·ç™»å½•(#api1-user)
+    * è·å–ç”¨æˆ·ä¿¡æ¯(#api1-profile)
+* Api-2 ç”µæºå¼€å…³æ§åˆ¶(#api2)
+* Api-3 è½¦é“çº¿æ£€æµ‹(#api3)
+* Api-4 å®æ—¶ä»¥å¤ªç½‘(#api4)
+* Api-5 è½¦è¾†æ§åˆ¶(#api5)
+* Api-6 æ‘„åƒå¤´å›ä¼ (#api6)
 
-[TOC]
-
-# Api-1 ÕËºÅ¹ÜÀí
+# <a name="api1"/>Api-1 è´¦å·ç®¡ç†
 ```
 /api/user/
 ```
 
-## ÓÃ»§µÇÂ¼
+## <a name="api1-user"/>ç”¨æˆ·ç™»å½•
 ```
 post `/api/user/login`
     
 params:
-    ¡¤ account   (string) ÓÃ»§ÕËºÅ
-    ¡¤ password  (string) ÃÜÂë
+    Â· account   (string) ç”¨æˆ·è´¦å·
+    Â· password  (string) å¯†ç 
 return:
-    ¡¤ userId    (string) ÓÃ»§Id
-    ¡¤ sessionId (string)
+    Â· userId    (string) ç”¨æˆ·Id
+    Â· sessionId (string)
 ```
-## »ñÈ¡ÓÃ»§ĞÅÏ¢
+## <a name="api1-profile"/>è·å–ç”¨æˆ·ä¿¡æ¯
 ```
 post `/api/user/profile`
 
 params:
-    ¡¤ sessionId (string)
-    ¡¤ userId    (string) ÓÃ»§Id
+    Â· sessionId (string)
+    Â· userId    (string) ç”¨æˆ·Id
 return:
-    ¡¤ userName  (string) ÓÃ»§êÇ³Æ
+    Â· userName  (string) ç”¨æˆ·æ˜µç§°
 ```
 
-# Api-2 µçÔ´¿ª¹Ø¿ØÖÆ
+# <a name="api2"/>Api-2 ç”µæºå¼€å…³æ§åˆ¶
 ```
 post `/api/power`
 
 params:
-    ¡¤ object  (int), 0 for power, 1 for camera
-    ¡¤ type    (int), 0 for turn off, 1 for turn on
+    Â· object  (int), 0 for power, 1 for camera
+    Â· type    (int), 0 for turn off, 1 for turn on
 return:
-    ¡¤ state   (int), 1 for success
+    Â· state   (int), 1 for success
 ```
 
-# Api-3 ³µµÀÏß¼ì²â
+# <a name="api3"/>Api-3 è½¦é“çº¿æ£€æµ‹
 ```
 post `/api/lane-detecton`
 
 params:
-    ¡¤ type    (int), 0 for turn off, 1 for turn on
+    Â· type    (int), 0 for turn off, 1 for turn on
 return:
-    ¡¤ state   (int), 1 for success
+    Â· state   (int), 1 for success
 ```
 
-# Api-4 ÊµÊ±ÒÔÌ«Íø
+# <a name="api4"/>Api-4 å®æ—¶ä»¥å¤ªç½‘
 ```
 post `/api/realtime-ethernet`
 
 params:
-    ¡¤ type    (int), 0 for turn off, 1 for turn on
+    Â· type    (int), 0 for turn off, 1 for turn on
 return:
-    ¡¤ state   (int), 1 for success
+    Â· state   (int), 1 for success
 ```
 
-# Api-5 ³µÁ¾¿ØÖÆ
+# <a name="api5"/>Api-5 è½¦è¾†æ§åˆ¶
 ```
 post `/api/realtime-ethernet`
 
 params:
-    ¡¤ type      (int) optional, 0 for turn off, 1 for turn on
-    ¡¤ direction (string) optional
+    Â· type      (int) optional, 0 for turn off, 1 for turn on
+    Â· direction (string) optional
                     > up
                     > right-up
                     > right
@@ -86,12 +92,12 @@ params:
                     > left
                     > left-up
 return:
-    ¡¤ state     (int), 1 for success
+    Â· state     (int), 1 for success
 ```
 
-# Api-6 ÉãÏñÍ·»Ø´«
+# <a name="api6"/>Api-6 æ‘„åƒå¤´å›ä¼ 
 ```
-´ı¶¨
+å¾…å®š
 ```
 
 
