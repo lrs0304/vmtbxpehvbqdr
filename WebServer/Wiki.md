@@ -58,7 +58,7 @@ return:
 
 # <a name="api3"/>Api-3 车道线检测
 ```
-post `/api/lane-detecton`
+post `/api/lanedetecton`
 
 params:
     · type    (int), 0 for turn off, 1 for turn on
@@ -68,7 +68,7 @@ return:
 
 # <a name="api4"/>Api-4 实时以太网
 ```
-post `/api/realtime-ethernet`
+post `/api/realtimeethernet`
 
 params:
     · type    (int), 0 for turn off, 1 for turn on
@@ -78,7 +78,7 @@ return:
 
 # <a name="api5"/>Api-5 车辆控制
 ```
-post `/api/realtime-ethernet`
+post `/api/carcontrol`
 
 params:
     · type      (int) optional, 0 for turn off, 1 for turn on
