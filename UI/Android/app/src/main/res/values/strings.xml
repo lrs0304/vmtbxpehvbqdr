@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">乐高控制端</string>
+    <string name="main_service_title">服务控制</string>
+    <string name="main_service_content_start">开启服务器</string>
+    <string name="main_service_hint_start">开启视频流服务</string>
+    <string name="action_run_in_background">后台运行</string>
+
+</resources>
