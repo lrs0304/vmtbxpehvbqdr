@@ -1,2 +1,2 @@
-# �ƶ����ƶ� UI
+# 移动控制端 UI
 nothing
