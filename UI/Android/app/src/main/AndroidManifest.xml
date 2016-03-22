@@ -6,6 +6,12 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
 
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <!--主动对焦-->
+    <uses-feature android:name="android.hardware.camera.autofocus"/>
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -29,6 +35,7 @@
             android:name=".control.streamservice.CameraStreamServiceActivity"
             android:configChanges="orientation|screenSize"
             android:launchMode="singleTask"
+            android:screenOrientation="landscape"
             android:theme="@style/AppTheme.NoActionBar"/>
     </application>
 
