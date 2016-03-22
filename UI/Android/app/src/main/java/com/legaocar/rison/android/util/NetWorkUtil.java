@@ -18,21 +18,38 @@ import java.nio.ByteOrder;
  */
 public class NetWorkUtil {
 
+    private LegoServer mWebServer;
+
     public static final int ServerPort = 8080;
     public static final int StreamingPort = 8088;
 
-    public static LegoServer initWebServer(Context context, LegoServer.CommonGatewayInterface doQuery) {
-        String ipAddr = wifiIpAddress(context);
-        LegoServer webServer = null;
-        if (ipAddr != null) {
-            try {
-                webServer = new LegoServer(ServerPort, context);
-                webServer.registerCGI("/cgi/query", doQuery);
-            } catch (IOException e) {
-                webServer = null;
+    private static NetWorkUtil mInstance;
+
+    public static NetWorkUtil getInstance() {
+        if (mInstance == null) {
+            synchronized (NetWorkUtil.class) {
+                if (mInstance == null) {
+                    mInstance = new NetWorkUtil();
+                }
             }
         }
-        return webServer;
+        return mInstance;
+    }
+
+    public LegoServer getWebServer(Context context) {
+        if (mWebServer != null) {
+            return mWebServer;
+        }
+
+        String ipAddr = wifiIpAddress(context);
+        if (ipAddr != null) {
+            try {
+                mWebServer = new LegoServer(ServerPort, context.getApplicationContext());
+            } catch (IOException e) {
+                mWebServer = null;
+            }
+        }
+        return mWebServer;
     }
 
     /**

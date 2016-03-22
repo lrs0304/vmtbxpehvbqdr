@@ -5,14 +5,12 @@ import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.TextView;
 
+import com.legaocar.rison.android.control.streamservice.CameraStreamServiceActivity;
 import com.legaocar.rison.android.server.LegoServer;
-import com.legaocar.rison.android.util.MToastUtil;
 import com.legaocar.rison.android.util.NetWorkUtil;
 
-import java.io.InputStream;
-import java.util.Properties;
-
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
+    @SuppressWarnings("unused")
     private static final String TAG = "MainActivity";
     private View mStartService;
 
@@ -26,7 +24,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         initViews();
 
         if (mWebServer == null) {
-            mWebServer = NetWorkUtil.initWebServer(this, doQuery);
+            mWebServer = NetWorkUtil.getInstance().getWebServer(this);
             TextView start = (TextView) mStartService.findViewById(R.id.hint);
             if (mWebServer != null) {
                 String address = "http://" + NetWorkUtil.wifiIpAddress(this) + ":" + NetWorkUtil.ServerPort;
@@ -52,7 +50,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.main_start_service: {
-                MToastUtil.show(this, "点击了启用服务");
+                CameraStreamServiceActivity.start(this);
             }
             break;
             default:
@@ -69,17 +67,4 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             mWebServer = null;
         }
     }
-
-    private LegoServer.CommonGatewayInterface doQuery = new LegoServer.CommonGatewayInterface() {
-        @Override
-        public String run(Properties parms) {
-            String ret = "hello rison";
-            return ret;
-        }
-
-        @Override
-        public InputStream streaming(Properties parms) {
-            return null;
-        }
-    };
 }
