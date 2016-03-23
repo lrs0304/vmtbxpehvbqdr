@@ -1,6 +1,7 @@
 package com.legaocar.rison.android.server;
 
 import android.content.res.AssetManager;
+import android.text.TextUtils;
 
 import com.legaocar.rison.android.util.MLog;
 
@@ -15,6 +16,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URLEncoder;
@@ -216,6 +218,7 @@ public class NanoHTTPD {
     public static final String
             MIME_PLAINTEXT = "text/plain",
             MIME_HTML = "text/html",
+            MULTIPART_BOUNDARY = "Q3ddfBFR5d6T0E99E",
             MIME_DEFAULT_BINARY = "application/octet-stream",
             MIME_XML = "text/xml";
 
@@ -227,21 +230,25 @@ public class NanoHTTPD {
      * Starts a HTTP server to given port.<p>
      * Throws an IOException if the socket is already in use
      */
-    public NanoHTTPD(int port, File wwwroot) throws IOException {
+    public NanoHTTPD(String host, int port, File wwwroot) throws IOException {
+        myHostname = host;
         myTcpPort = port;
         myRootDir = wwwroot;
         myAssets = null;
 
-        myServerSocket = new ServerSocket(myTcpPort);
+        myServerSocket = new ServerSocket();
+        myServerSocket.bind((myHostname == null) ? new InetSocketAddress(myTcpPort) : new InetSocketAddress(myHostname, myTcpPort));
         beginDaemon();
     }
 
-    public NanoHTTPD(int port, AssetManager wwwroot) throws IOException {
+    public NanoHTTPD(String host, int port, AssetManager wwwroot) throws IOException {
+        myHostname = host;
         myTcpPort = port;
         myAssets = wwwroot;
         myRootDir = null;
 
-        myServerSocket = new ServerSocket(myTcpPort);
+        myServerSocket = new ServerSocket();
+        myServerSocket.bind((myHostname == null) ? new InetSocketAddress(myTcpPort) : new InetSocketAddress(myHostname, myTcpPort));
         beginDaemon();
     }
 
@@ -295,7 +302,7 @@ public class NanoHTTPD {
             }
 
         try {
-            new NanoHTTPD(port, wwwroot);
+            new NanoHTTPD(null, port, wwwroot);
         } catch (IOException ioe) {
             MLog.e(TAG, "Couldn't start server:\n" + ioe);
             System.exit(-1);
@@ -348,7 +355,7 @@ public class NanoHTTPD {
                 String method = pre.getProperty("method");
                 String uri = pre.getProperty("uri");
 
-                long size = 0x7FFFFFFFFFFFFFFFl;
+                long size = 0x7FFFFFFFFFFFFFFFL;
                 String contentLength = header.getProperty("content-length");
                 if (contentLength != null) {
                     try {
@@ -382,7 +389,7 @@ public class NanoHTTPD {
                 // expect the first byte of the body at the next read.
                 if (splitbyte < rlen)
                     size -= rlen - splitbyte + 1;
-                else if (!sbfound || size == 0x7FFFFFFFFFFFFFFFl)
+                else if (!sbfound || size == 0x7FFFFFFFFFFFFFFFL)
                     size = 0;
 
                 // Now read all the body and write it to f
@@ -651,7 +658,7 @@ public class NanoHTTPD {
          */
         private String decodePercent(String str) throws InterruptedException {
             try {
-                StringBuffer sb = new StringBuffer();
+                StringBuilder sb = new StringBuilder();
                 for (int i = 0; i < str.length(); i++) {
                     char c = str.charAt(i);
                     switch (c) {
@@ -690,9 +697,12 @@ public class NanoHTTPD {
             while (st.hasMoreTokens()) {
                 String e = st.nextToken();
                 int sep = e.indexOf('=');
-                if (sep >= 0)
-                    p.put(decodePercent(e.substring(0, sep)).trim(),
-                            decodePercent(e.substring(sep + 1)));
+                if (sep >= 0) {
+                    String key = decodePercent(e.substring(0, sep));
+                    if (key != null && TextUtils.isEmpty(key.trim())) {
+                        p.put(key, decodePercent(e.substring(sep + 1)));
+                    }
+                }
             }
         }
 
@@ -736,7 +746,7 @@ public class NanoHTTPD {
                 pw.flush();
 
                 if (data != null) {
-                    if (isStreaming == false) {
+                    if (!isStreaming) {
                         int pending = data.available();    // This is to support partial sends, see serveFile()
                         byte[] buff = new byte[2048];
                         while (pending > 0) {
@@ -792,7 +802,8 @@ public class NanoHTTPD {
         return newUri;
     }
 
-    private int myTcpPort;
+    private final String myHostname;
+    private final int myTcpPort;
     private final ServerSocket myServerSocket;
     private Thread myThread;
     private File myRootDir;
@@ -806,8 +817,7 @@ public class NanoHTTPD {
      * Serves file from homeDir and its' subdirectories (only).
      * Uses only URI, ignores all headers and HTTP parameters.
      */
-    public Response serveFile(String uri, Properties header, File homeDir,
-                              boolean allowDirectoryListing) {
+    public Response serveFile(String uri, Properties header, File homeDir, boolean allowDirectoryListing) {
         Response res = null;
 
         if (homeDir == null) {
@@ -825,7 +835,7 @@ public class NanoHTTPD {
                 uri = uri.substring(0, uri.indexOf('?'));
 
             // Prohibit getting out of current directory
-            if (uri.startsWith("..") || uri.endsWith("..") || uri.indexOf("../") >= 0)
+            if (uri.startsWith("..") || uri.endsWith("..") || uri.contains("../"))
                 res = new Response(HTTP_FORBIDDEN, MIME_PLAINTEXT,
                         "FORBIDDEN: Won't serve ../ for security reasons.");
         }
@@ -909,7 +919,7 @@ public class NanoHTTPD {
                 String mime = null;
                 int dot = f.getCanonicalPath().lastIndexOf('.');
                 if (dot >= 0)
-                    mime = (String) theMimeTypes.get(f.getCanonicalPath().substring(dot + 1).toLowerCase());
+                    mime = (String) MIME_TYPES.get(f.getCanonicalPath().substring(dot + 1).toLowerCase());
                 if (mime == null)
                     mime = MIME_DEFAULT_BINARY;
 
@@ -986,7 +996,7 @@ public class NanoHTTPD {
             uri = uri.substring(0, uri.indexOf('?'));
 
         // Prohibit getting out of current directory
-        if (uri.startsWith("..") || uri.endsWith("..") || uri.indexOf("../") >= 0) {
+        if (uri.startsWith("..") || uri.endsWith("..") || uri.contains("../")) {
             res = new Response(HTTP_FORBIDDEN, MIME_PLAINTEXT,
                     "FORBIDDEN: Won't serve ../ for security reasons.");
         }
@@ -1013,7 +1023,7 @@ public class NanoHTTPD {
                 String mime = null;
                 int dot = uri.lastIndexOf('.');
                 if (dot >= 0)
-                    mime = (String) theMimeTypes.get(uri.substring(dot + 1).toLowerCase());
+                    mime = (String) MIME_TYPES.get(uri.substring(dot + 1).toLowerCase());
                 if (mime == null)
                     mime = MIME_DEFAULT_BINARY;
 
@@ -1075,9 +1085,9 @@ public class NanoHTTPD {
     }
 
     /**
-     * Hashtable mapping (String)FILENAME_EXTENSION -> (String)MIME_TYPE
+     * HashTable mapping (String)FILENAME_EXTENSION -> (String)MIME_TYPE
      */
-    private static Hashtable theMimeTypes = new Hashtable();
+    protected static Hashtable<String, String> MIME_TYPES = new Hashtable<>();
 
     static {
         StringTokenizer st = new StringTokenizer(
@@ -1092,6 +1102,7 @@ public class NanoHTTPD {
                         "jpeg		image/jpeg " +
                         "png		image/png " +
                         "mp3		audio/mpeg " +
+                        "m4a		audio/mp4" +
                         "m3u		audio/mpeg-url " +
                         "mp4		video/mp4 " +
                         "ogv		video/ogg " +
@@ -1104,9 +1115,13 @@ public class NanoHTTPD {
                         "ogg		application/x-ogg " +
                         "zip		application/octet-stream " +
                         "exe		application/octet-stream " +
-                        "class		application/octet-stream ");
+                        "class		application/octet-stream " +
+                        "json       application/json" +
+                        "svg        image/svg+xml" +
+                        "mjpg       multipart/x-mixed-replace; boundary=" + MULTIPART_BOUNDARY);
+
         while (st.hasMoreTokens())
-            theMimeTypes.put(st.nextToken(), st.nextToken());
+            MIME_TYPES.put(st.nextToken(), st.nextToken());
     }
 
     /**

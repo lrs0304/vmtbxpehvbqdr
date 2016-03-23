@@ -6,7 +6,7 @@ import android.view.View;
 import android.widget.TextView;
 
 import com.legaocar.rison.android.control.streamservice.CameraStreamServiceActivity;
-import com.legaocar.rison.android.server.LegoServer;
+import com.legaocar.rison.android.server.LegoHttpServer;
 import com.legaocar.rison.android.util.NetWorkUtil;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
@@ -14,7 +14,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private static final String TAG = "MainActivity";
     private View mStartService;
 
-    private LegoServer mWebServer;
+    private LegoHttpServer mWebServer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

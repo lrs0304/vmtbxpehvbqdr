@@ -2,9 +2,8 @@ package com.legaocar.rison.android.util;
 
 import android.content.Context;
 import android.net.wifi.WifiManager;
-import android.util.Log;
 
-import com.legaocar.rison.android.server.LegoServer;
+import com.legaocar.rison.android.server.LegoHttpServer;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -18,10 +17,12 @@ import java.nio.ByteOrder;
  */
 public class NetWorkUtil {
 
-    private LegoServer mWebServer;
+    /**
+     * 应该使用service
+     */
+    private LegoHttpServer mWebServer;
 
     public static final int ServerPort = 8080;
-    public static final int StreamingPort = 8088;
 
     private static NetWorkUtil mInstance;
 
@@ -36,7 +37,7 @@ public class NetWorkUtil {
         return mInstance;
     }
 
-    public LegoServer getWebServer(Context context) {
+    public LegoHttpServer getWebServer(Context context) {
         if (mWebServer != null) {
             return mWebServer;
         }
@@ -44,7 +45,8 @@ public class NetWorkUtil {
         String ipAddr = wifiIpAddress(context);
         if (ipAddr != null) {
             try {
-                mWebServer = new LegoServer(ServerPort, context.getApplicationContext());
+                // // TODO: 16-3-23  应该允许自定义端口
+                mWebServer = new LegoHttpServer(null, ServerPort, context.getApplicationContext());
             } catch (IOException e) {
                 mWebServer = null;
             }
@@ -59,7 +61,7 @@ public class NetWorkUtil {
         WifiManager wifiManager = (WifiManager) context.getSystemService(Context.WIFI_SERVICE);
         int ipAddress = wifiManager.getConnectionInfo().getIpAddress();
 
-        // Convert little-endian to big-endianif needed
+        // Convert little-endian to big-endian if needed
         if (ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN)) {
             ipAddress = Integer.reverseBytes(ipAddress);
         }
@@ -70,7 +72,7 @@ public class NetWorkUtil {
         try {
             ipAddressString = InetAddress.getByAddress(ipByteArray).getHostAddress();
         } catch (UnknownHostException ex) {
-            Log.e("WIFIIP", "Unable to get host address.");
+            MLog.e("WIFI IP", "Unable to get host address.");
             ipAddressString = null;
         }
 

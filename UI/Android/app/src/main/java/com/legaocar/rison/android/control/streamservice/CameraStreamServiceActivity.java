@@ -4,12 +4,20 @@ import android.content.Context;
 import android.content.Intent;
 import android.hardware.Camera;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
 import android.view.SurfaceView;
 import android.view.WindowManager;
 
 import com.legaocar.rison.android.R;
+import com.legaocar.rison.android.server.LegoHttpServer;
+import com.legaocar.rison.android.util.MLog;
+import com.legaocar.rison.android.util.MToastUtil;
+import com.legaocar.rison.android.util.NetWorkUtil;
 
+import java.io.DataOutputStream;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -25,6 +33,11 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
     private CameraView mCameraView;
     private ReentrantLock mPreviewLock = new ReentrantLock();
 
+    private DataOutputStream mStream;
+    private LegoHttpServer mWebServer;
+    private Handler mStreamingHandler;
+    private static final int StreamingInterval = 10;//ms
+
     public static void start(Context context) {
         Intent intent = new Intent(context, CameraStreamServiceActivity.class);
         context.startActivity(intent);
@@ -38,7 +51,35 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
 
         initViews();
 
-        initCamera();
+        mWebServer = NetWorkUtil.getInstance().getWebServer(this);
+        if (mWebServer == null) {
+            MToastUtil.show(this, "web server error");
+            finish();
+            return;
+        } else {
+            initCamera();
+
+            try {
+                ServerSocket server = new ServerSocket(8080);
+                Socket socket = server.accept();
+                server.close();
+
+                MLog.i(TAG, "New connection to :" + socket.getInetAddress());
+
+                mStream = new DataOutputStream(socket.getOutputStream());
+            } catch (Exception e) {
+                mStream = null;
+                MLog.e(TAG, e.getMessage());
+            }
+
+            mStreamingHandler = new Handler();
+            mStreamingHandler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    doStreaming();
+                }
+            }, StreamingInterval);
+        }
     }
 
     @Override
@@ -104,4 +145,8 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
             mPreviewLock.unlock();
         }
     };
+
+    private void doStreaming() {
+
+    }
 }
