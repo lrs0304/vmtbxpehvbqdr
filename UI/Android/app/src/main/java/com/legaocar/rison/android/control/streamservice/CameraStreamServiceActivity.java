@@ -19,8 +19,13 @@ import com.legaocar.rison.android.util.NetWorkUtil;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
+import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
@@ -33,6 +38,9 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
     private static final String TAG = CameraStreamServiceActivity.class.getSimpleName();
 
     private static final String CAPTURE_URL = "/video/capture.jpg";
+    private static final String VIDEO_STREAM_URL = "/video/live.mjpg";
+    private static final int BUFFER_RECEIVE = 256;
+    private static final int BUFFER_SEND = 8192;//8kb
 
     private int mPictureWidth = 480;
     private int mPictureHeight = 360;
@@ -47,8 +55,14 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
     private LegoHttpServer mWebServer;
 
     boolean isProcessing = false;
-    ExecutorService executor = Executors.newFixedThreadPool(3);
+    ExecutorService mImageExecutor = Executors.newFixedThreadPool(3);
     ImageEncodingTask mImageEncodingTask = new ImageEncodingTask();
+
+    // 负责处理视频流
+    private boolean isStreamingVideo;
+    private MJpegVideoEncoder mVideoEncoder = null;
+    private List<DataStream> mVideoStreams = null;
+    private List<DataStream> mTempVideoStreams = null;
 
     public static void start(Context context) {
         Intent intent = new Intent(context, CameraStreamServiceActivity.class);
@@ -69,7 +83,7 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
             finish();
         } else {
             initCamera();
-            // todo mWebServer.registerStream("/video/live.mjpg", videoProcessor);
+            mWebServer.registerStream(VIDEO_STREAM_URL, mVideoProcessor);
             mWebServer.registerStream(CAPTURE_URL, mCaptureProcessor);
         }
     }
@@ -104,10 +118,7 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
             mPreviewLock.unlock();
         }
 
-        mCaptureProcessor = null;
-        if (mWebServer != null) {
-            mWebServer.registerStream(CAPTURE_URL, null);
-        }
+        releaseVideoStream();
 
         super.onDestroy();
     }
@@ -135,6 +146,29 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
         SurfaceView cameraSurface = (SurfaceView) findViewById(R.id.surface_camera);
         mCameraView = new CameraView(cameraSurface);
         mCameraView.setCameraReadyCallback(this);
+
+
+        isStreamingVideo = false;
+        if (mVideoStreams == null)
+            mVideoStreams = new ArrayList<>();
+        if (mTempVideoStreams == null)
+            mTempVideoStreams = new ArrayList<>(1);
+    }
+
+    private void releaseVideoStream() {
+
+        mCaptureProcessor = null;
+        mVideoProcessor = null;
+        if (mWebServer != null) {
+            mWebServer.registerStream(CAPTURE_URL, null);
+            mWebServer.registerStream(VIDEO_STREAM_URL, null);
+        }
+
+        // 释放
+        isStreamingVideo = false;
+        for (DataStream videoStream : mVideoStreams) {
+            videoStream.release();
+        }
     }
 
     private Camera.PreviewCallback previewCallBack = new Camera.PreviewCallback() {
@@ -163,7 +197,7 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
         System.arraycopy(yuvFrame, 0, mFrameData, 0, yuvFrame.length);
 
         isProcessing = true;
-        executor.execute(mImageEncodingTask);
+        mImageExecutor.execute(mImageEncodingTask);
     }
 
     //// TODO: 16-3-23 应该用C代码加快转换速度
@@ -201,7 +235,7 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
 
                     mOutputStream.reset();
                     mYuvImage = new YuvImage(mFrameData, mVideoPreViewFormat, mPictureWidth, mPictureHeight, null);
-                    mYuvImage.compressToJpeg(mArea, 80, mOutputStream);
+                    mYuvImage.compressToJpeg(mArea, 75, mOutputStream);
                     if (mFrameConvertImage == null || mFrameConvertImage.length < mOutputStream.size()) {
                         mFrameConvertImage = new byte[mOutputStream.size()];
                     }
@@ -221,6 +255,9 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
         }
     }
 
+    /**
+     * 负责上传单张图片
+     */
     private LegoHttpServer.CommonGatewayInterface mCaptureProcessor = new LegoHttpServer.CommonGatewayInterface() {
         InputStream mInputStream;
 
@@ -240,4 +277,114 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
         }
     };
 
+    /**
+     * 负责处理MJpeg图片流
+     */
+    private LegoHttpServer.CommonGatewayInterface mVideoProcessor = new LegoHttpServer.CommonGatewayInterface() {
+        @Override
+        public String run(Properties params) {
+            return null;
+        }
+
+        @Override
+        public InputStream streaming(Properties params) {
+            // 准备一个视频流
+            Random rnd = new Random();
+            String eTag = Integer.toHexString(rnd.nextInt());
+            DataStream videoStream = new DataStream(getPackageName() + eTag);
+            videoStream.prepare(BUFFER_RECEIVE, BUFFER_SEND);
+
+            InputStream is;
+            try {
+                is = videoStream.getInputStream();
+                OutputStream os = videoStream.getOutputStream();
+                if (os == null) {
+                    return null;
+                }
+                os.write(("HTTP/1.0 200 OK\r\n" +
+                        "Server: Lego Http Server\r\n" +
+                        "Connection: close\r\n" +
+                        "Max-Age: 0\r\n" +
+                        "Expires: 0\r\n" +
+                        "Cache-Control: no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0\r\n" +
+                        "Pragma: no-cache\r\n" +
+                        "Access-Control-Allow-Origin: *\r\n" +
+                        "Content-Type: multipart/x-mixed-replace; " +
+                        "boundary=" + LegoHttpServer.MULTIPART_BOUNDARY + "\r\n" +
+                        "\r\n" +
+                        "--" + LegoHttpServer.MULTIPART_BOUNDARY + "\r\n").getBytes());
+                //  todo 加上会出问题，如何解决  os.flush();
+            } catch (IOException e) {
+                videoStream.release();
+                return null;
+            }
+
+            mTempVideoStreams.add(videoStream);
+
+            if (!isStreamingVideo) {
+                mVideoEncoder = new MJpegVideoEncoder();
+                mVideoEncoder.start();
+            }
+            return is;
+        }
+    };
+
+    /**
+     * 处理MJpeg视频流
+     */
+    private class MJpegVideoEncoder extends Thread {
+
+        @Override
+        public void run() {
+
+            if (isStreamingVideo) {
+                return;
+            }
+
+            isStreamingVideo = true;
+
+            List<DataStream> invalidVideoStreams = new ArrayList<>();
+            while (true) {
+                if (!isStreamingVideo) {
+                    break;
+                }
+
+                for (DataStream videoStream : mVideoStreams) {
+                    try {
+                        OutputStream os = videoStream.getOutputStream();
+                        if (os != null) {
+                            if (mFrameConvertImage == null) break;
+                            os.write(("Content-type: image/jpeg\r\n" +
+                                    "Content-Length: " + mFrameConvertImage.length +
+                                    "X-Timestamp:" + System.currentTimeMillis() + "\r\n" +
+                                    "\r\n").getBytes());
+                            os.write(mFrameConvertImage);
+                            os.write(("\r\n--" + LegoHttpServer.MULTIPART_BOUNDARY + "\r\n").getBytes());
+                            os.flush();
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        invalidVideoStreams.add(videoStream);
+                        break;
+                    }
+                }
+
+                // 对无效的Stream清理，释放空间
+                if (invalidVideoStreams.size() > 0) {
+                    for (DataStream videoStream : invalidVideoStreams) {
+                        videoStream.release();
+                        mVideoStreams.remove(videoStream);
+                    }
+                    invalidVideoStreams.clear();
+                }
+
+                if (mTempVideoStreams.size() > 0) {
+                    mVideoStreams.addAll(mTempVideoStreams);
+                    mTempVideoStreams.clear();
+                }
+            }
+            isStreamingVideo = false;
+        }
+
+    }
 }

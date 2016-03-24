@@ -58,21 +58,21 @@ public class LegoHttpServer extends NanoHTTPD {
         }
     }
 
-    public Response serveStream(String uri, String method, Properties header, Properties parms, Properties files) {
+    public Response serveStream(String uri, String method, Properties header, Properties params, Properties files) {
         CommonGatewayInterface stream = streamEntries.get(uri);
         if (stream == null)
             return null;
 
         InputStream ins;
-        ins = stream.streaming(parms);
+        ins = stream.streaming(params);
         if (ins == null)
             return null;
 
         Random rnd = new Random();
         String eTag = Integer.toHexString(rnd.nextInt());
-        String mime = parms.getProperty("mime");
-        if (mime == null)
-            mime = "application/octet-stream";
+        String mime = params.getProperty("mime");
+        //        if (mime == null)
+        //            mime = "application/octet-stream";
         Response res = new Response(HTTP_OK, mime, ins);
         res.addHeader("ETag", eTag);
 
