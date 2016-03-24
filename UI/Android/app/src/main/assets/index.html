@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-cn">
 <head>
-    <title>乐高项目-移动摄像头</title>
+    <title>乐高项目-传感器融合</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
     <!-- boostrap 3.0.3-->
@@ -9,18 +9,61 @@
     <link rel="stylesheet" href="css/lib/bootstrap-theme.min.css">
     <link rel="stylesheet" href="css/lib/jquery.nouislider.css">
 </head>
-<body>
+<body style="text-align:center">
 
 <div class="container" id="mainform">
+    <br/><br/><br/>
+    <a href="./">重新加载</a>
+    <br/><br/><br/>
+    <img src="./video/live.mjpg" alt="测试视频流"/>
+    <br/><br/><br/>
+    <div id="video_pane" style="margin:auto; border: 1px solid black;">
 
-    <a href="./video/live.mjpg">测试视频流</a>
-    <a href="./video/capture.jpg">测试截图</a>
-    <h1>Hello word</h1>
-
+    </div>
 </div>
 
 <!-- jQuery文件。务必在bootstrap.min.js 之前引入 Jquery 1.10.2, bootstrap 3.0.3-->
 <script src="js/lib/jquery.min.js"></script>
 <script src="js/lib/bootstrap.min.js"></script>
+<script>
+    var root='';
+var working=null;
+var showing=null;
+
+var jsLoadImage = function() {
+   if (!jsUpdate)
+     return;
+
+   var oldshowing = showing;
+   showing = working;
+   working = oldshowing;
+   showing.css('visibility', 'visible')
+   working.css('visibility', 'hidden')
+
+   showing.unbind()
+   working.load(jsLoadImage);
+   working.attr("src", root + "/video/capture.jpg?rnd="+Math.floor(Math.random()*1000000));
+   if (!jsSizeOk) {
+      jsSizeOk = true;
+      $("#img2").css('margin-top', '-'+showing.height()+'px').css('display', 'block');
+    }
+}
+
+    // 加载图片流
+    $('#video_pane').append($('<img id="img1" class="video-image" alt="video" src="'+root+'/video/capture.jpg?1"/>'))
+    $('#video_pane').append($('<img id="img2" class="video-image" style="display: none;" alt="video" src="'+root+'/video/capture.jpg?2"/>'))
+    working = $("#img2");
+    showing = $("#img1");
+    working.css("zIndex", -1);
+    jsUpdate = true;
+    jsSizeOk = false;
+    working.load(jsLoadImage);
+    working.attr("src", root + "/video/capture.jpg?rnd="+Math.floor(Math.random()*1000000));
+
+    $('#video_pane').css('width', showing.width());
+    $('#video_pane').css('height', showing.height());
+
+
+</script>
 </body>
 </html>
