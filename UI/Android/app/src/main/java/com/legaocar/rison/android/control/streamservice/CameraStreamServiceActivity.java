@@ -13,7 +13,7 @@ import android.view.WindowManager;
 
 import com.legaocar.rison.android.R;
 import com.legaocar.rison.android.server.LegoHttpServer;
-import com.legaocar.rison.android.util.MLog;
+import com.legaocar.rison.android.util.MLogUtil;
 import com.legaocar.rison.android.util.MToastUtil;
 import com.legaocar.rison.android.util.NetWorkUtil;
 
@@ -210,7 +210,7 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
 
                 default:
                     mOutputStream.reset();
-                    MLog.e(TAG, "no frame image");
+                    MLogUtil.e(TAG, "no frame image");
             }
 
             //synchronized (CameraStreamServiceActivity.this) {

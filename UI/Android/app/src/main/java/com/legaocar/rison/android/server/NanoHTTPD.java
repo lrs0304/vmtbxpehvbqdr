@@ -3,7 +3,7 @@ package com.legaocar.rison.android.server;
 import android.content.res.AssetManager;
 import android.text.TextUtils;
 
-import com.legaocar.rison.android.util.MLog;
+import com.legaocar.rison.android.util.MLogUtil;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -111,7 +111,7 @@ public class NanoHTTPD {
             info += "\n  upload: '" + value + "' = '" + files.getProperty(value) + "'";
         }
 
-        MLog.w(TAG, info);
+        MLogUtil.w(TAG, info);
 
         return serveFile(uri, header, myRootDir, true);
     }
@@ -283,7 +283,7 @@ public class NanoHTTPD {
      * Starts as a standalone file server and waits for Enter.
      */
     public static void main(String[] args) {
-        MLog.w(TAG, "NanoHTTPD 1.24 (C) 2001,2005-2011 Jarno Elonen and (C) 2010 Konstantinos Togias\n" +
+        MLogUtil.w(TAG, "NanoHTTPD 1.24 (C) 2001,2005-2011 Jarno Elonen and (C) 2010 Konstantinos Togias\n" +
                 "(Command line options: [-p port] [-d root-dir] [--licence])\n");
 
         // Defaults
@@ -297,19 +297,19 @@ public class NanoHTTPD {
             else if (args[i].equalsIgnoreCase("-d"))
                 wwwroot = new File(args[i + 1]).getAbsoluteFile();
             else if (args[i].toLowerCase().endsWith("licence")) {
-                MLog.w(TAG, LICENCE + "\n");
+                MLogUtil.w(TAG, LICENCE + "\n");
                 break;
             }
 
         try {
             new NanoHTTPD(null, port, wwwroot);
         } catch (IOException ioe) {
-            MLog.e(TAG, "Couldn't start server:\n" + ioe);
+            MLogUtil.e(TAG, "Couldn't start server:\n" + ioe);
             System.exit(-1);
         }
 
-        MLog.w(TAG, "Now serving files in port " + port + " from \"" + wwwroot + "\"");
-        MLog.w(TAG, "Hit Enter to stop.\n");
+        MLogUtil.w(TAG, "Now serving files in port " + port + " from \"" + wwwroot + "\"");
+        MLogUtil.w(TAG, "Hit Enter to stop.\n");
 
         try {
             System.in.read();
@@ -632,7 +632,7 @@ public class NanoHTTPD {
                     fstream.close();
                     path = temp.getAbsolutePath();
                 } catch (Exception e) { // Catch exception if any
-                    MLog.e(TAG, "Error: " + e.getMessage());
+                    MLogUtil.e(TAG, "Error: " + e.getMessage());
                 }
             }
             return path;

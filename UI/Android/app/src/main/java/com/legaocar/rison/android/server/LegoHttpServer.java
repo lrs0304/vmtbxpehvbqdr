@@ -2,7 +2,7 @@ package com.legaocar.rison.android.server;
 
 import android.content.Context;
 
-import com.legaocar.rison.android.util.MLog;
+import com.legaocar.rison.android.util.MLogUtil;
 
 import java.io.File;
 import java.io.IOException;
@@ -47,7 +47,7 @@ public class LegoHttpServer extends NanoHTTPD {
 
     @Override
     public Response serve(String uri, String method, Properties header, Properties parms, Properties files) {
-        MLog.w(TAG, "httpd request >>" + method + " '" + uri + "' " + "   " + parms);
+        MLogUtil.w(TAG, "httpd request >>" + method + " '" + uri + "' " + "   " + parms);
 
         if (uri.startsWith("/cgi/")) {
             return serveCGI(uri, method, header, parms, files);

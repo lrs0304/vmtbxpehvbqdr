@@ -9,8 +9,6 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceHolder.Callback;
 import android.view.SurfaceView;
 
-import com.legaocar.rison.android.util.MLog;
-
 import java.util.List;
 
 /**

@@ -8,7 +8,7 @@ import com.legaocar.rison.android.config.BuildConfig;
  * Created by rison on 16-3-22.
  * 自定义的Log输出
  */
-public class MLog {
+public class MLogUtil {
 
     public static void i(String tag, String content) {
         Log.i(tag, content);

@@ -83,7 +83,7 @@ public class NetWorkUtil {
         try {
             ipAddressString = InetAddress.getByAddress(ipByteArray).getHostAddress();
         } catch (UnknownHostException ex) {
-            MLog.e("WIFI IP", "Unable to get host address.");
+            MLogUtil.e("WIFI IP", "Unable to get host address.");
             ipAddressString = null;
         }
 
@@ -109,7 +109,7 @@ public class NetWorkUtil {
                 }
             }
         } catch (SocketException ex) {
-            MLog.d(TAG, "[getLocalIPAddress] Error retrieving IP address");
+            MLogUtil.d(TAG, "[getLocalIPAddress] Error retrieving IP address");
             ex.printStackTrace();
         }
         return "";
