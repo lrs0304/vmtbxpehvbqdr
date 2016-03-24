@@ -112,7 +112,7 @@ public class CameraView implements Callback {
 
         Camera.Parameters p = camera_.getParameters();
         p.setPreviewSize(procSize_.width, procSize_.height);
-        p.setPreviewFormat(ImageFormat.NV21);
+        //todo p.setPreviewFormat(ImageFormat.NV21); // 可以用jpeg就好了
         p.setPreviewFpsRange(targetMaxFrameRate, targetMinFrameRate);
         camera_.setParameters(p);
 

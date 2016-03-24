@@ -75,7 +75,8 @@ public class LegoHttpServer extends NanoHTTPD {
             mime = "application/octet-stream";
         Response res = new Response(HTTP_OK, mime, ins);
         res.addHeader("ETag", eTag);
-        res.isStreaming = true;
+
+        res.isStreaming = uri.contains("live");//live.mjpg
 
         return res;
     }
@@ -112,8 +113,6 @@ public class LegoHttpServer extends NanoHTTPD {
     }
 
     public void registerStream(String uri, CommonGatewayInterface stream) {
-        if (stream != null) {
-            streamEntries.put(uri, stream);
-        }
+        streamEntries.put(uri, stream);
     }
 }

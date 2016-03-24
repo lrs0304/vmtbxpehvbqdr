@@ -27,7 +27,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             mWebServer = NetWorkUtil.getInstance().getWebServer(this);
             TextView start = (TextView) mStartService.findViewById(R.id.hint);
             if (mWebServer != null) {
-                String address = "http://" + NetWorkUtil.wifiIpAddress(this) + ":" + NetWorkUtil.ServerPort;
+                String address = "http://" + NetWorkUtil.getLocalIPAddress(this) + ":" + NetWorkUtil.ServerPort;
                 start.setText(getString(R.string.main_service_hint_start, address));
             } else {
                 start.setText(R.string.main_service_hint_stop);
@@ -60,11 +60,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     protected void onDestroy() {
-        super.onDestroy();
 
         if (mWebServer != null) {
             mWebServer.stop();
             mWebServer = null;
         }
+        NetWorkUtil.getInstance().destroyWebServer();
+
+        super.onDestroy();
+
+
     }
 }

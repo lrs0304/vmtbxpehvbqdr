@@ -2,14 +2,20 @@ package com.legaocar.rison.android.util;
 
 import android.content.Context;
 import android.net.wifi.WifiManager;
+import android.text.TextUtils;
 
+import com.legaocar.rison.android.R;
 import com.legaocar.rison.android.server.LegoHttpServer;
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.net.Inet4Address;
 import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.nio.ByteOrder;
+import java.util.Enumeration;
 
 /**
  * Created by rison on 16-3-21.
@@ -17,6 +23,7 @@ import java.nio.ByteOrder;
  */
 public class NetWorkUtil {
 
+    private static final String TAG = "NetWorkUtil";
     /**
      * 应该使用service
      */
@@ -42,11 +49,11 @@ public class NetWorkUtil {
             return mWebServer;
         }
 
-        String ipAddr = wifiIpAddress(context);
-        if (ipAddr != null) {
+        String ipAddress = getLocalIPAddress(context);
+
+        if (ipAddress != null) {
             try {
-                // // TODO: 16-3-23  应该允许自定义端口
-                mWebServer = new LegoHttpServer(null, ServerPort, context.getApplicationContext());
+                mWebServer = new LegoHttpServer(ipAddress, ServerPort, context.getApplicationContext());
             } catch (IOException e) {
                 mWebServer = null;
             }
@@ -54,10 +61,14 @@ public class NetWorkUtil {
         return mWebServer;
     }
 
+    public void destroyWebServer(){
+        mWebServer = null;
+    }
+
     /**
      * @return 当前链接的wifi地址
      */
-    public static String wifiIpAddress(Context context) {
+    public static String getWifiIpAddress(Context context) {
         WifiManager wifiManager = (WifiManager) context.getSystemService(Context.WIFI_SERVICE);
         int ipAddress = wifiManager.getConnectionInfo().getIpAddress();
 
@@ -78,4 +89,30 @@ public class NetWorkUtil {
 
         return ipAddressString;
     }
+
+    public static String getLocalIPAddress(Context context) {
+        String wifiAddress = getWifiIpAddress(context);
+        if (!TextUtils.isEmpty(wifiAddress)) {
+            // wifi address first
+            return wifiAddress;
+        }
+
+        try {
+            for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements(); ) {
+                NetworkInterface intf = en.nextElement();
+                for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements(); ) {
+                    InetAddress inetAddress = enumIpAddr.nextElement();
+                    if (!inetAddress.isLoopbackAddress() && inetAddress instanceof Inet4Address) {
+                        MToastUtil.show(context, R.string.network_may_can_not_be_reach);
+                        return inetAddress.getHostAddress();
+                    }
+                }
+            }
+        } catch (SocketException ex) {
+            MLog.d(TAG, "[getLocalIPAddress] Error retrieving IP address");
+            ex.printStackTrace();
+        }
+        return "";
+    }
+
 }
