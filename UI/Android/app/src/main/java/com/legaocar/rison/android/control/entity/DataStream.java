@@ -1,4 +1,4 @@
-package com.legaocar.rison.android.control.streamservice;
+package com.legaocar.rison.android.control.entity;
 
 import android.net.LocalServerSocket;
 import android.net.LocalSocket;

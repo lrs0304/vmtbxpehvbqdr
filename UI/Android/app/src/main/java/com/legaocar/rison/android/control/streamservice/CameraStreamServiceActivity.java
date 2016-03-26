@@ -12,6 +12,7 @@ import android.view.SurfaceView;
 import android.view.WindowManager;
 
 import com.legaocar.rison.android.R;
+import com.legaocar.rison.android.control.entity.DataStream;
 import com.legaocar.rison.android.server.LegoHttpServer;
 import com.legaocar.rison.android.util.MLogUtil;
 import com.legaocar.rison.android.util.MToastUtil;
