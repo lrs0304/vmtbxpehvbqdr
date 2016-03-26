@@ -292,8 +292,15 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
             // 准备一个视频流
             Random rnd = new Random();
             String eTag = Integer.toHexString(rnd.nextInt());
-            DataStream videoStream = new DataStream(getPackageName() + eTag);
-            videoStream.prepare(BUFFER_RECEIVE, BUFFER_SEND);
+
+            DataStream videoStream = null;
+            try {
+                videoStream = new DataStream();
+            } catch (Exception e) {
+                e.printStackTrace();
+                MLogUtil.d(TAG, "error on creating video stream");
+                return null;
+            }
 
             InputStream is;
             try {
@@ -314,7 +321,7 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
                         "boundary=" + LegoHttpServer.MULTIPART_BOUNDARY + "\r\n" +
                         "\r\n" +
                         "--" + LegoHttpServer.MULTIPART_BOUNDARY + "\r\n").getBytes());
-                //os.flush();
+                os.flush();
             } catch (IOException e) {
                 videoStream.release();
                 return null;
