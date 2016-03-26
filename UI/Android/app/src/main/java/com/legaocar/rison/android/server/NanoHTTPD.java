@@ -744,23 +744,36 @@ public class NanoHTTPD {
                     }
                 }
 
-                pw.print("\r\n");
+                //  pw.print("\r\n"); lets control header in the stream
                 pw.flush();
+
+                final int BUFFER_SIZE = 1024 * 4;// send 4kb once time
 
                 if (data != null) {
                     if (!isStreaming) {
                         int pending = data.available();    // This is to support partial sends, see serveFile()
-                        byte[] buff = new byte[2048];
+
+                        if (pending > 0) {
+                            pw.print("Connection: keep-alive\r\n");
+                            pw.print("Content-Length: " + pending + "\r\n");
+                        }
+
+                        pw.print("Access-Control-Allow-Origin: *\r\n");
+                        pw.print("\r\n");
+                        pw.flush();
+
+                        byte[] buff = new byte[BUFFER_SIZE];
                         while (pending > 0) {
-                            int read = data.read(buff, 0, ((pending > 2048) ? 2048 : pending));
+                            int read = data.read(buff, 0, ((pending > BUFFER_SIZE) ? 2048 : pending));
                             if (read <= 0) break;
                             out.write(buff, 0, read);
                             pending -= read;
                         }
                     } else {
-                        byte[] buff = new byte[2048];
+                        // sending stream
+                        byte[] buff = new byte[BUFFER_SIZE];
                         while (true) {
-                            int read = data.read(buff, 0, 2048);
+                            int read = data.read(buff, 0, BUFFER_SIZE);
                             if (read <= 0)
                                 break;
                             if (read > 0)
