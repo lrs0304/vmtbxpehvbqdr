@@ -305,7 +305,7 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
                         "Server: Lego Http Server\r\n" +
                         "Connection: close\r\n" +
                         "Max-Age: 0\r\n" +
-                        "Expires: 0\r\n" +
+                        "Expires: -1\r\n" +
                         "Cache-Control: no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0\r\n" +
                         "Pragma: no-cache\r\n" +
                         "Access-Control-Allow-Origin: *\r\n" +
@@ -313,7 +313,7 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
                         "boundary=" + LegoHttpServer.MULTIPART_BOUNDARY + "\r\n" +
                         "\r\n" +
                         "--" + LegoHttpServer.MULTIPART_BOUNDARY + "\r\n").getBytes());
-                //  todo 加上会出问题，如何解决  os.flush();
+                //os.flush();
             } catch (IOException e) {
                 videoStream.release();
                 return null;

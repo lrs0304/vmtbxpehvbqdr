@@ -473,6 +473,8 @@ public class NanoHTTPD {
          **/
         private void decodeHeader(BufferedReader in, Properties pre, Properties parms, Properties header)
                 throws InterruptedException {
+            // 修复播放mp4进度不保存问题-未验证
+            header.put("range", "bytes=0-");
             try {
                 // Read the request line
                 String inLine = in.readLine();
