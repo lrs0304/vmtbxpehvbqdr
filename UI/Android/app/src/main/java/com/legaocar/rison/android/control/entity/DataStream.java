@@ -12,21 +12,29 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 /**
- * A fifo server provide inputStream for NanoHttpD server
- * 基于NanoHttpD的设计逻辑，如果需要传输流到网页或移动设备，需要提供一个输入流到NanoHttpD迷你服务器
+ * A fifo server provide inputStream for NanoHttpD server<br/>
+ * 基于 {@link com.legaocar.rison.android.server.NanoHTTPD}的设计逻辑，如果需要传输流到网页或移动设备，需要提供一个输入流到NanoHttpD迷你服务器
  */
-public final class DataStream {
+public class DataStream {
     @SuppressWarnings("unused")
     private static final String TAG = "DataStream";
 
-    // 由于 Android5.0 对 LocalSocket 做出来安全限制，使用 ParcelFileDescriptor 取代
+    /**
+     * 由于 Android5.0 对 LocalSocket 做出来安全限制，使用 ParcelFileDescriptor 取代
+     * http://www.apihome.cn/api/android/ParcelFileDescriptor.html
+     */
     private ParcelFileDescriptor[] mParcelFileDescriptors;
     protected ParcelFileDescriptor mParcelRead;
     protected ParcelFileDescriptor mParcelWrite;
 
-    protected InputStream mInputStream;
-    protected OutputStream mOutputStream;
+    private InputStream mInputStream;
+    private OutputStream mOutputStream;
 
+    /**
+     * 参见 {@link DataStream}
+     *
+     * @throws IOException
+     */
     public DataStream() throws IOException {
         mParcelFileDescriptors = ParcelFileDescriptor.createPipe();
         mParcelRead = new ParcelFileDescriptor(mParcelFileDescriptors[0]);
@@ -35,6 +43,7 @@ public final class DataStream {
 
     /**
      * inputStream, get data from outputStream and throw to consumer (like NanoHttpServer etc.)
+     * 输入流，提供给消费者或者服务端
      *
      * @throws IOException
      */
@@ -51,6 +60,7 @@ public final class DataStream {
 
     /**
      * outputStream, which enables you to write data to server
+     * 输出流，面向内容产生，内部将输入的内容提供给输入流，从而形成fifo结构
      *
      * @throws IOException
      */
@@ -68,6 +78,7 @@ public final class DataStream {
 
     /**
      * close streamer if do not use any more
+     * Android机器上的资源比较紧张，既是释放
      */
     public void release() {
 

@@ -13,6 +13,7 @@ import android.view.WindowManager;
 
 import com.legaocar.rison.android.R;
 import com.legaocar.rison.android.control.entity.DataStream;
+import com.legaocar.rison.android.control.entity.MJpegStream;
 import com.legaocar.rison.android.server.LegoHttpServer;
 import com.legaocar.rison.android.util.MLogUtil;
 import com.legaocar.rison.android.util.MToastUtil;
@@ -20,13 +21,10 @@ import com.legaocar.rison.android.util.NetWorkUtil;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
-import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
@@ -62,8 +60,8 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
     // 负责处理视频流
     private boolean isStreamingVideo;
     private MJpegVideoEncoder mVideoEncoder = null;
-    private List<DataStream> mVideoStreams = null;
-    private List<DataStream> mTempVideoStreams = null;
+    private List<MJpegStream> mVideoStreams = null;
+    private List<MJpegStream> mTempVideoStreams = null;
 
     public static void start(Context context) {
         Intent intent = new Intent(context, CameraStreamServiceActivity.class);
@@ -289,13 +287,10 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
 
         @Override
         public InputStream streaming(Properties params) {
-            // 准备一个视频流
-            Random rnd = new Random();
-            String eTag = Integer.toHexString(rnd.nextInt());
-
-            DataStream videoStream = null;
+            // 准备一个视频输入流
+            MJpegStream videoStream;
             try {
-                videoStream = new DataStream();
+                videoStream = new MJpegStream();
             } catch (Exception e) {
                 e.printStackTrace();
                 MLogUtil.d(TAG, "error on creating video stream");
@@ -305,24 +300,8 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
             InputStream is;
             try {
                 is = videoStream.getInputStream();
-                OutputStream os = videoStream.getOutputStream();
-                if (os == null) {
-                    return null;
-                }
-                os.write(("HTTP/1.0 200 OK\r\n" +
-                        "Server: Lego Http Server\r\n" +
-                        "Connection: close\r\n" +
-                        "Max-Age: 0\r\n" +
-                        "Expires: -1\r\n" +
-                        "Cache-Control: no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0\r\n" +
-                        "Pragma: no-cache\r\n" +
-                        "Access-Control-Allow-Origin: *\r\n" +
-                        "Content-Type: multipart/x-mixed-replace; " +
-                        "boundary=" + LegoHttpServer.MULTIPART_BOUNDARY + "\r\n" +
-                        "\r\n" +
-                        "--" + LegoHttpServer.MULTIPART_BOUNDARY + "\r\n").getBytes());
-                os.flush();
-            } catch (IOException e) {
+                videoStream.addCommonStreamHeader();
+            } catch (Exception e) {
                 videoStream.release();
                 return null;
             }
@@ -352,24 +331,19 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
             isStreamingVideo = true;
 
             List<DataStream> invalidVideoStreams = new ArrayList<>();
+            long timeStamp;
             while (true) {
                 if (!isStreamingVideo) {
                     break;
                 }
 
-                for (DataStream videoStream : mVideoStreams) {
+                timeStamp = System.currentTimeMillis();
+                for (MJpegStream videoStream : mVideoStreams) {
+                    if(mFrameConvertImage==null){
+                        break;
+                    }
                     try {
-                        OutputStream os = videoStream.getOutputStream();
-                        if (os != null) {
-                            if (mFrameConvertImage == null) break;
-                            os.write(("Content-type: image/jpeg\r\n" +
-                                    "Content-Length: " + mFrameConvertImage.length +
-                                    "X-Timestamp:" + System.currentTimeMillis() + "\r\n" +
-                                    "\r\n").getBytes());
-                            os.write(mFrameConvertImage);
-                            os.write(("\r\n--" + LegoHttpServer.MULTIPART_BOUNDARY + "\r\n").getBytes());
-                            os.flush();
-                        }
+                        videoStream.sendFrame(mFrameConvertImage, mFrameConvertImage.length, timeStamp);
                     } catch (Exception e) {
                         e.printStackTrace();
                         invalidVideoStreams.add(videoStream);
