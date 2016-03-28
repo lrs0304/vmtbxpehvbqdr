@@ -1,6 +1,7 @@
 package com.legaocar.rison.android.control.entity;
 
 import com.legaocar.rison.android.server.LegoHttpServer;
+import com.legaocar.rison.android.util.MLogUtil;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -49,7 +50,7 @@ import java.io.OutputStream;
  * <li>mJpegFrame</li>
  * <li>\r\n--LegoHttpServer.MULTIPART_BOUNDARY\r\n</li>
  * </ul>
- * <p>
+ * <p/>
  */
 public final class MJpegStream extends DataStream {
 
@@ -82,12 +83,42 @@ public final class MJpegStream extends DataStream {
             "\r\n";
 
     /**
+     * 有时候可能机器比较老，无法及时传递下一帧进来，为了节省带宽，我们可以等到下一帧拷贝完成了再传输<br/>
+     * To save the bandwidth of network, give the picture a tag indicate whether is a new frame. <br/>
+     * If it's not a new frame, do not send the old buffer.
+     */
+    private static final byte NEW_JPG_NONE = 0x0, NEW_JPG_A = 0x1, NEW_JPG_B = 0x2;
+    private byte isNewJpeg;
+    /**
+     * 双缓冲
+     */
+    private byte[] mBufferA;
+    private byte[] mBufferB;
+    private long mTimeStampA;
+    private long mTimeStampB;
+    private int mBufferLength;
+    private boolean isStreamingBufferA;
+
+    /**
+     * Worker,send frames one by one
+     * 用于将传来的缓存一帧一帧的分发
+     */
+    private Thread mWorker;
+    private boolean isWorkerRunning;
+
+    /**
      * 参见 {@link MJpegStream}
      *
      * @throws IOException
      */
     public MJpegStream() throws IOException {
         super();
+
+        isNewJpeg = NEW_JPG_NONE;
+
+        isWorkerRunning = true;
+        mWorker = new Thread(mWorkerRunnable);
+        mWorker.start();
     }
 
     /**
@@ -118,12 +149,128 @@ public final class MJpegStream extends DataStream {
             throw new NullPointerException("[MJpegStream] mOutputStream is null");
         }
 
-        //// TODO: 16-3-27 双缓冲
-        String frameHeader = String.format(MJpegStreamFrameHeader, length, timestamp);
-        outputStream.write(frameHeader.getBytes());
-        outputStream.write(jpegFrame);
-        outputStream.write(MJpegStreamBoundaryLine.getBytes());
+        final byte[] sendBuffer;
+        if (isStreamingBufferA) {// 如果此时正在发送BufferA，我们可以先把图像拷贝给BufferB
+            if (mBufferB == null || mBufferB.length < length) {
+                mBufferB = new byte[length];//todo 找个时间了解下这个操作是否为深拷贝jpegFrame.clone()
+            }
 
-        outputStream.flush();
+            sendBuffer = mBufferB;
+            mTimeStampB = timestamp;
+            isNewJpeg = NEW_JPG_A;
+        } else {
+            if (mBufferA == null || mBufferA.length < length) {
+                mBufferA = new byte[length];
+            }
+
+            sendBuffer = mBufferA;
+            mTimeStampA = timestamp;
+            isNewJpeg = NEW_JPG_B;
+        }
+
+
+        mBufferLength = length;
+        System.arraycopy(jpegFrame, 0, sendBuffer, 0, length);
     }
+
+    /**
+     * do release the worker and memory
+     */
+    @Override
+    public void release() {
+        MLogUtil.d(TAG, "release mJpeg stream");
+        stopWorker();
+        super.release();
+    }
+
+    /**
+     * 由于现在的逻辑，外部结构无法获知outputStream是否关闭
+     *
+     * @return 是否
+     */
+    public boolean isAlive() {
+        OutputStream outputStream;
+        try {
+            outputStream = getOutputStream();
+        } catch (final Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+        return isWorkerRunning && outputStream != null;
+    }
+
+    /**
+     * stop worker and release the object it holds
+     * 停止帧转发线程
+     */
+    private void stopWorker() {
+        if (!isWorkerRunning || mWorker == null) {
+            return;
+        }
+        isWorkerRunning = false;
+        mWorker.interrupt();
+        mWorkerRunnable = null;
+    }
+
+    /**
+     * 参见 {@link #mWorker}
+     * send frames one by one
+     */
+    private Runnable mWorkerRunnable = new Runnable() {
+        @Override
+        public void run() {
+
+            byte[] bufferSend;
+            byte[] boundaryLine = MJpegStreamBoundaryLine.getBytes();
+            long timestamp;
+            String frameHeader;
+            OutputStream outputStream;
+
+            while (isWorkerRunning) {
+
+                /**
+                 *  wait for a new jpg frame
+                 *  当产生新的数据时才继续线程，否则等待
+                 */
+                while (isNewJpeg == NEW_JPG_NONE) {
+                    try {
+                        /**
+                         * 对于视频来说，60帧已经非常流畅，因此我们可以把休眠间隔加长些。最坏的情况是延迟了 4 毫秒
+                         */
+                        Thread.sleep(4);
+                    } catch (final InterruptedException e) {
+                        // ignore
+                    }
+                }
+
+                isNewJpeg = NEW_JPG_NONE;
+
+                // change another buffer to stream
+                isStreamingBufferA = !isStreamingBufferA;
+                if (isStreamingBufferA) {
+                    bufferSend = mBufferA;
+                    timestamp = mTimeStampA;
+                } else {
+                    bufferSend = mBufferB;
+                    timestamp = mTimeStampB;
+                }
+
+                // send to server
+                frameHeader = String.format(MJpegStreamFrameHeader, mBufferLength, timestamp);
+                try {
+                    outputStream = getOutputStream();
+                    outputStream.write(frameHeader.getBytes());
+                    outputStream.write(bufferSend);
+                    outputStream.write(boundaryLine);
+                    outputStream.flush();
+
+                } catch (final Exception e) {
+                    // TODO: 16-3-27 应该想办法告知线程
+                    e.printStackTrace();
+                    stopWorker();
+                    break;
+                }
+            }
+        }
+    };
 }

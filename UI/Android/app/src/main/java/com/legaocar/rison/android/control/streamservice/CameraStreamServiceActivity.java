@@ -339,15 +339,17 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
 
                 timeStamp = System.currentTimeMillis();
                 for (MJpegStream videoStream : mVideoStreams) {
-                    if(mFrameConvertImage==null){
+                    if (mFrameConvertImage == null) {
                         break;
                     }
                     try {
                         videoStream.sendFrame(mFrameConvertImage, mFrameConvertImage.length, timeStamp);
+                        if (!videoStream.isAlive()) {
+                            invalidVideoStreams.add(videoStream);
+                        }
                     } catch (Exception e) {
                         e.printStackTrace();
                         invalidVideoStreams.add(videoStream);
-                        break;
                     }
                 }
 
