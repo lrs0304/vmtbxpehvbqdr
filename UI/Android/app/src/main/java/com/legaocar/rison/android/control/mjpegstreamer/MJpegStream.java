@@ -1,5 +1,6 @@
-package com.legaocar.rison.android.control.entity;
+package com.legaocar.rison.android.control.mjpegstreamer;
 
+import com.legaocar.rison.android.control.basic.DataStream;
 import com.legaocar.rison.android.server.LegoHttpServer;
 import com.legaocar.rison.android.util.MLogUtil;
 

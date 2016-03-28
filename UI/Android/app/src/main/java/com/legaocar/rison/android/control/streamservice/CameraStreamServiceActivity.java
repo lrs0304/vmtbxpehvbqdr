@@ -12,8 +12,8 @@ import android.view.SurfaceView;
 import android.view.WindowManager;
 
 import com.legaocar.rison.android.R;
-import com.legaocar.rison.android.control.entity.DataStream;
-import com.legaocar.rison.android.control.entity.MJpegStream;
+import com.legaocar.rison.android.control.basic.DataStream;
+import com.legaocar.rison.android.control.mjpegstreamer.MJpegStream;
 import com.legaocar.rison.android.server.LegoHttpServer;
 import com.legaocar.rison.android.util.MLogUtil;
 import com.legaocar.rison.android.util.MToastUtil;
@@ -38,8 +38,6 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
 
     private static final String CAPTURE_URL = "/video/capture.jpg";
     private static final String VIDEO_STREAM_URL = "/video/live.mjpg";
-    private static final int BUFFER_RECEIVE = 256;
-    private static final int BUFFER_SEND = 8192;//8kb
 
     private int mPictureWidth = 480;
     private int mPictureHeight = 360;

@@ -1,12 +1,7 @@
-package com.legaocar.rison.android.control.entity;
+package com.legaocar.rison.android.control.basic;
 
-import android.net.LocalServerSocket;
-import android.net.LocalSocket;
-import android.net.LocalSocketAddress;
 import android.os.ParcelFileDescriptor;
-import android.util.Log;
 
-import java.io.FileDescriptor;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
