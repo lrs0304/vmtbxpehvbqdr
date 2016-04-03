@@ -65,8 +65,7 @@ public final class MJpegStream extends DataStream {
      * MJpeg 视频流响应头部
      */
     private static final String MJpegStreamCommonHeader
-            = "HTTP/1.0 200 OK\r\n" +
-            "Server: Lego Http Server\r\n" +
+            = "Server: Lego Http Server 1.0\r\n" +
             "Connection: close\r\n" +
             "Max-Age: 0\r\n" +
             "Expires: -1\r\n" +
@@ -238,7 +237,7 @@ public final class MJpegStream extends DataStream {
                         /**
                          * 对于视频来说，60帧已经非常流畅，因此我们可以把休眠间隔加长些。最坏的情况是延迟了 4 毫秒
                          */
-                        Thread.sleep(4);
+                        Thread.sleep(2);
                     } catch (final InterruptedException e) {
                         // ignore
                     }
