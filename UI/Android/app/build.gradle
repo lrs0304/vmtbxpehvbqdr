@@ -10,6 +10,14 @@ android {
         targetSdkVersion 23
         versionCode 1
         versionName "1.0"
+
+        ndk {
+            moduleName "decodeYUV"
+            abiFilters "armeabi", "armeabi-v7a"
+            //  stl "stlport_shared"
+            //  ldLibs "log", "z", "m"
+            //  cFlags "-I/some/include/path"
+        }
     }
 
     lintOptions {

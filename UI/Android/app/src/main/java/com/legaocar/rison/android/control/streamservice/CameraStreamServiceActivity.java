@@ -369,4 +369,5 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
         }
 
     }
+
 }

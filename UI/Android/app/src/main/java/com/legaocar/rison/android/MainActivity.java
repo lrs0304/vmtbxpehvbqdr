@@ -68,7 +68,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         NetWorkUtil.getInstance().destroyWebServer();
 
         super.onDestroy();
+    }
 
-
+    /**
+     * 最先加载，模块名，不包含文件名前的lib和末尾的.so字段
+     */
+    static {
+        System.loadLibrary("decodeYUV");
     }
 }
