@@ -11,6 +11,10 @@ import com.legaocar.rison.android.util.MLogUtil;
 import com.legaocar.rison.android.util.NativeUtil;
 import com.legaocar.rison.android.util.NetWorkUtil;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.util.Properties;
+
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
     @SuppressWarnings("unused")
     private static final String TAG = "MainActivity";
@@ -62,7 +66,28 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
             break;
             case R.id.main_debug_jni: {
-                NativeUtil.getInstance().testJni();
+                mWebServer.registerStream("/video/capture.jpg", new LegoHttpServer.CommonGatewayInterface() {
+                    @Override
+                    public String run(Properties params) {
+                        return null;
+                    }
+
+                    @Override
+                    public InputStream streaming(Properties params) {
+
+                        try {
+                            InputStream in = getResources().openRawResource(R.raw.jpg);
+                            int length = in.available();
+                            byte[] originYUV = new byte[length];
+                            in.read(originYUV);
+                            byte[] jpg = new byte[length];
+                            NativeUtil.getInstance().compressYuvToJpeg(originYUV, jpg, 1, 100, 480, 320);
+                            return new ByteArrayInputStream(jpg);
+                        } catch (final Exception e) {
+                            return null;
+                        }
+                    }
+                });
             }
             default:
                 break;

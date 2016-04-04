@@ -6,18 +6,20 @@ jstring Java_com_legaocar_rison_android_util_NativeUtil_stringFromJNI(JNIEnv *en
     return env->NewStringUTF("Lego Control Sever");
 }
 
-void Java_com_legaocar_rison_android_util_NativeUtil_compressYuvToJpeg
+/**
+ * format 参数暂时不使用。
+ */
+jlong Java_com_legaocar_rison_android_util_NativeUtil_compressYuvToJpeg
         (JNIEnv *env, jclass, jbyteArray byteYuv, jbyteArray byteJpg,
          int format, int quality, int width, int height) {
-    // todo something
+    jboolean isCopy = JNI_TRUE;
     jbyte *yuv = env->GetByteArrayElements(byteYuv, NULL);
-    jbyte *jpg = env->GetByteArrayElements(byteJpg, NULL);
+    jbyte *jpg = env->GetByteArrayElements(byteJpg, &isCopy);
 
-    strcpy((char *) jpg, (char *) yuv);
-//    SkWStream* strm = CreateJavaOutputStreamAdaptor(env, jstream, jstorage);
-//
-//    jint* imgOffsets = env->GetIntArrayElements(offsets, NULL);
-//    jint* imgStrides = env->GetIntArrayElements(strides, NULL);
+    int originLength = env->GetArrayLength(byteYuv);
+    for (int i = 0; i < originLength; i++) {
+        jpg[i] = yuv[i];
+    }
 
     /**
      * 调用了Get就必须调用Release
@@ -37,5 +39,37 @@ void Java_com_legaocar_rison_android_util_NativeUtil_compressYuvToJpeg
      */
     env->ReleaseByteArrayElements(byteYuv, yuv, JNI_ABORT);
     env->ReleaseByteArrayElements(byteJpg, jpg, 0);
+
+    return 0;
 }
+
+/**
+ * 分离YUV通道
+ */
+void get_Y_U_V(const unsigned char *yuvData, unsigned char *in_Y,
+               unsigned char *in_U, unsigned char *in_V, int nStride, int height) {
+
+    int i = 0, u = 0, v = 2;
+    // y,u,v通道迭代计数器
+    int y_n = 0, u_n = 0, v_n = 0;
+
+    int size = nStride * height * 2;
+
+    while (i < size) {
+        if (i % 2 != 0) {
+            in_Y[y_n] = yuvData[i];
+            y_n++;
+        } else if (i == u) {
+            in_U[u_n] = yuvData[i];
+            u += 4;
+            u_n++;
+        } else if (i == v) {
+            in_V[v_n] = yuvData[i];
+            v += 4;
+            v_n++;
+        }
+        i++;
+    }
+}
+
 
