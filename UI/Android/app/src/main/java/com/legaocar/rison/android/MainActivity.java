@@ -7,6 +7,8 @@ import android.widget.TextView;
 
 import com.legaocar.rison.android.control.streamservice.CameraStreamServiceActivity;
 import com.legaocar.rison.android.server.LegoHttpServer;
+import com.legaocar.rison.android.util.MLogUtil;
+import com.legaocar.rison.android.util.NativeUtil;
 import com.legaocar.rison.android.util.NetWorkUtil;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
@@ -22,6 +24,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         setContentView(R.layout.main_activity);
 
         initViews();
+        MLogUtil.i(TAG, NativeUtil.getInstance().stringFromJNI());
 
         if (mWebServer == null) {
             mWebServer = NetWorkUtil.getInstance().getWebServer(this);
@@ -36,7 +39,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     }
 
-    @SuppressWarnings("null")
     private void initViews() {
         mStartService = findViewById(R.id.main_start_service);
         if (mStartService != null) {
@@ -44,6 +46,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             mStartService.findViewById(R.id.toggle).setVisibility(View.INVISIBLE);
         }
 
+        View debugJniView = findViewById(R.id.main_debug_jni);
+        if (debugJniView != null) {
+            debugJniView.setOnClickListener(this);
+            ((TextView) debugJniView.findViewById(R.id.hint)).setText(R.string.main_debug_jni);
+            debugJniView.findViewById(R.id.toggle).setVisibility(View.INVISIBLE);
+        }
     }
 
     @Override
@@ -53,6 +61,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 CameraStreamServiceActivity.start(this);
             }
             break;
+            case R.id.main_debug_jni: {
+                NativeUtil.getInstance().testJni();
+            }
             default:
                 break;
         }

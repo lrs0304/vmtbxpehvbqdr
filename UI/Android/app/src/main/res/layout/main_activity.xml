@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@color/default_background"
-    android:fitsSystemWindows="true"
-    android:paddingBottom="@dimen/activity_vertical_margin"
-    android:paddingEnd="@dimen/activity_horizontal_margin"
-    android:paddingLeft="@dimen/activity_horizontal_margin"
-    android:paddingRight="@dimen/activity_horizontal_margin"
-    android:paddingStart="@dimen/activity_horizontal_margin"
-    android:paddingTop="@dimen/activity_vertical_margin"
-    tools:context="com.legaocar.rison.android.MainActivity">
+            xmlns:tools="http://schemas.android.com/tools"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/default_background"
+            android:fitsSystemWindows="true"
+            android:paddingBottom="@dimen/activity_vertical_margin"
+            android:paddingEnd="@dimen/activity_horizontal_margin"
+            android:paddingLeft="@dimen/activity_horizontal_margin"
+            android:paddingRight="@dimen/activity_horizontal_margin"
+            android:paddingStart="@dimen/activity_horizontal_margin"
+            android:paddingTop="@dimen/activity_vertical_margin"
+            tools:context="com.legaocar.rison.android.MainActivity">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -20,13 +20,23 @@
 
         <TextView
             style="@style/MAIN_LIST_TITLE"
-            android:text="@string/main_service_title" />
+            android:text="@string/main_service_title"/>
 
         <include
             android:id="@+id/main_start_service"
-            layout="@layout/main_activity_bean" />
+            layout="@layout/main_activity_bean"/>
 
-        <include layout="@layout/basic_line_horizon" />
+        <include layout="@layout/basic_line_horizon"/>
+
+        <TextView
+            style="@style/MAIN_LIST_TITLE"
+            android:text="@string/main_debug"/>
+
+        <include
+            android:id="@+id/main_debug_jni"
+            layout="@layout/main_activity_bean"/>
+
+        <include layout="@layout/basic_line_horizon"/>
     </LinearLayout>
 
 </ScrollView>

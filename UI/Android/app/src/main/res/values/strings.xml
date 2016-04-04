@@ -6,7 +6,10 @@
     <string name="main_service_hint_stop">开启视频流服务</string>
     <string name="main_service_hint_start">服务器地址：%s</string>
     <string name="action_run_in_background">后台运行</string>
+    <string name="main_debug">Debug设置</string>
+    <string name="main_debug_jni">测试Jni功能</string>
 
     <!--network util-->
     <string name="network_may_can_not_be_reach">非WiFi网络，可能无法访问</string>
+
 </resources>
