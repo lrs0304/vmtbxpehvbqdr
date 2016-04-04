@@ -71,7 +71,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     /**
-     * 最先加载，模块名，不包含文件名前的lib和末尾的.so字段
+     * static最先加载，只填写模块名，不包含文件名前的lib和末尾的.so字段
      */
     static {
         System.loadLibrary("decodeYUV");
