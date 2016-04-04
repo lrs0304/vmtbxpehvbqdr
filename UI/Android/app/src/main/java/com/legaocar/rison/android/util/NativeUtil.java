@@ -4,7 +4,7 @@ package com.legaocar.rison.android.util;
  * Created by rison on 16-4-3.
  * 加载Jni函数
  */
-@SuppressWarnings("all")
+
 public class NativeUtil {
     private static final String TAG = "NativeUtil";
     private static NativeUtil mInstance;
@@ -31,4 +31,5 @@ public class NativeUtil {
     }
 
     public native void compressYuvToJpeg(byte[] yuv, byte[] jpg, int format, int quality, int width, int height);
+
 }

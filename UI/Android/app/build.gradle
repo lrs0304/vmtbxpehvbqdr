@@ -17,6 +17,7 @@ android {
             //  stl "stlport_shared"
             //  ldLibs "log", "z", "m" //链接时使用到的库，对应LOCAL_LDLIBS
             //  cFlags "-I/some/include/path"
+            cFlags = "-std=c99"
         }
     }
 
