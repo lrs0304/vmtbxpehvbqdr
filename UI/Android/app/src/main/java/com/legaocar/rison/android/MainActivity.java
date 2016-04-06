@@ -76,13 +76,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     public InputStream streaming(Properties params) {
 
                         try {
-                            InputStream in = getResources().openRawResource(R.raw.jpg);
+                            InputStream in = getResources().openRawResource(R.raw.origin);
                             int length = in.available();
                             byte[] originYUV = new byte[length];
                             in.read(originYUV);
                             byte[] jpg = new byte[length];
-                            NativeUtil.getInstance().compressYuvToJpeg(originYUV, jpg, 1, 100, 480, 320);
-                            return new ByteArrayInputStream(jpg);
+                            int size = (int) NativeUtil.getInstance().compressYuvToJpeg(originYUV, jpg, 1, 75, 480, 320);
+                            byte[] newJpg = new byte[size];
+                            System.arraycopy(jpg, 0, newJpg, 0, size);
+                            return new ByteArrayInputStream(newJpg);
                         } catch (final Exception e) {
                             return null;
                         }

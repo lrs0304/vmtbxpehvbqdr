@@ -1,4 +1,5 @@
 #include <stddef.h>
+#include <stdint.h>
 #include "decodeYUV.h"
 
 // hello world
@@ -16,10 +17,19 @@ jlong Java_com_legaocar_rison_android_util_NativeUtil_compressYuvToJpeg
     jbyte *yuv = env->GetByteArrayElements(byteYuv, NULL);
     jbyte *jpg = env->GetByteArrayElements(byteJpg, &isCopy);
 
-    int originLength = env->GetArrayLength(byteYuv);
-    for (int i = 0; i < originLength; i++) {
-        jpg[i] = yuv[i];
-    }
+    BYTE *in_Y = (BYTE *) malloc(width * height);//
+    BYTE *in_U = (BYTE *) malloc(width * height / 2);//
+    BYTE *in_V = (BYTE *) malloc(width * height / 2);//
+
+    unsigned long dwSize = 0;
+
+    get_Y_U_V((BYTE *) yuv, in_Y, in_U, in_V, width, height);
+
+    YUV2Jpg(in_Y, in_U, in_V, width, height, quality, width, (BYTE *) jpg, &dwSize);
+
+    free(in_Y);
+    free(in_U);
+    free(in_V);
 
     /**
      * 调用了Get就必须调用Release
@@ -40,36 +50,40 @@ jlong Java_com_legaocar_rison_android_util_NativeUtil_compressYuvToJpeg
     env->ReleaseByteArrayElements(byteYuv, yuv, JNI_ABORT);
     env->ReleaseByteArrayElements(byteJpg, jpg, 0);
 
-    return 0;
+    return dwSize;
 }
 
 /**
  * 分离YUV通道
  */
-void get_Y_U_V(const unsigned char *yuvData, unsigned char *in_Y,
-               unsigned char *in_U, unsigned char *in_V, int nStride, int height) {
+// NV21--->YYYYYYYY UVUV
+//https://wiki.videolan.org/YUV#NV21
+//比较详细的YUV格式 http://stackoverflow.com/questions/5272388/extract-black-and-white-image-from-android-cameras-nv21-format
+void get_Y_U_V(const BYTE *yuv, BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height) {
 
-    int i = 0, u = 0, v = 2;
-    // y,u,v通道迭代计数器
+    int frameSize = width * height;
+
     int y_n = 0, u_n = 0, v_n = 0;
 
-    int size = nStride * height * 2;
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+            in_Y[y_n++] = yuv[i * width + j];
 
-    while (i < size) {
-        if (i % 2 != 0) {
-            in_Y[y_n] = yuvData[i];
-            y_n++;
-        } else if (i == u) {
-            in_U[u_n] = yuvData[i];
-            u += 4;
-            u_n++;
-        } else if (i == v) {
-            in_V[v_n] = yuvData[i];
-            v += 4;
-            v_n++;
+            if (j % 2 == 0) {// 只要单数列的UV
+
+                if (i % 2 == 0) {//第一行
+                    in_U[u_n++] = yuv[frameSize + i * width / 2];
+                    in_V[v_n++] = yuv[frameSize + i * width / 2 + 1];
+                } else { // 第二行
+                    in_U[u_n] = in_U[u_n - width / 2];
+                    u_n++;
+                    in_V[v_n] = in_V[v_n - width / 2];
+                    v_n++;
+                }
+            }
         }
-        i++;
     }
+
 }
 
 

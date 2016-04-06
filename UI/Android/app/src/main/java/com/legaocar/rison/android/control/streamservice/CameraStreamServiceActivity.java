@@ -266,8 +266,8 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
         @Override
         public InputStream streaming(Properties params) {
             if (mFrameConvertImage != null) {
-                mInputStream = new ByteArrayInputStream(mFrameConvertImage);
-                params.put("mime", "image/jpeg");
+                mInputStream = new ByteArrayInputStream(mFrameData);
+//                params.put("mime", "image/jpeg");
                 return mInputStream;
             }
             return null;

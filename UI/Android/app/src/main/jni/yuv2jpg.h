@@ -9,31 +9,40 @@
 #define DC_MAX_QUANTED 2047
 #define DC_MIN_QUANTED -2048
 
+//改个名字，容易理解
+#include<stdint.h>
+
+typedef uint8_t BYTE;
+
+//#include <android/log.h>
+//#define  MY_TAG    "Legao Server Native"
+//#define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, MY_TAG, __VA_ARGS__))
+
 typedef struct tagHUFFCODE {
     unsigned short code;
-    unsigned char length;
+    BYTE length;
     unsigned short val;
 } HUFFCODE;
 
 typedef struct tagJPEGINFO {
     float YQT_DCT[DCTBLOCKSIZE];
     float UVQT_DCT[DCTBLOCKSIZE];
-    unsigned char YQT[DCTBLOCKSIZE];
-    unsigned char UVQT[DCTBLOCKSIZE];
-    unsigned char VLI_TAB[4096];
-    unsigned char *pVLITAB;
+    BYTE YQT[DCTBLOCKSIZE];
+    BYTE UVQT[DCTBLOCKSIZE];
+    BYTE VLI_TAB[4096];
+    BYTE *pVLITAB;
     HUFFCODE STD_DC_Y_HT[12];
     HUFFCODE STD_DC_UV_HT[12];
     HUFFCODE STD_AC_Y_HT[256];
     HUFFCODE STD_AC_UV_HT[256];
-    unsigned char bytenew;
-    char bytepos;
+    BYTE bytenew;
+    __signed char bytepos;
 } JPEGINFO;
 
 static unsigned short SOITAG = 0xD8FF;
 static unsigned short EOITAG = 0xD9FF;
 
-static unsigned char FZBT[64] = {
+static BYTE FZBT[64] = {
         0, 1, 5, 6, 14, 15, 27, 28,
         2, 4, 7, 13, 16, 26, 29, 42,
         3, 8, 12, 17, 25, 30, 41, 43,
@@ -44,7 +53,7 @@ static unsigned char FZBT[64] = {
         35, 36, 48, 49, 57, 58, 62, 63
 };
 
-static unsigned char std_Y_QT[64] = {
+static BYTE std_Y_QT[64] = {
         16, 11, 10, 16, 24, 40, 51, 61,
         12, 12, 14, 19, 26, 58, 60, 55,
         14, 13, 16, 24, 40, 57, 69, 56,
@@ -55,7 +64,7 @@ static unsigned char std_Y_QT[64] = {
         72, 92, 95, 98, 112, 100, 103, 99
 };
 
-static unsigned char std_UV_QT[64] = {
+static BYTE std_UV_QT[64] = {
         17, 18, 24, 47, 99, 99, 99, 99,
         18, 21, 26, 66, 99, 99, 99, 99,
         24, 26, 56, 99, 99, 99, 99, 99,
@@ -71,17 +80,17 @@ static double aanScaleFactor[8] = {
         1.0, 0.785694958, 0.541196100, 0.275899379
 };
 
-static unsigned char STD_DC_Y_NRCODES[17] = {0, 0, 1, 5, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
+static BYTE STD_DC_Y_NRCODES[17] = {0, 0, 1, 5, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
 
-static unsigned char STD_DC_Y_VALUES[12] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+static BYTE STD_DC_Y_VALUES[12] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
 
-static unsigned char STD_DC_UV_NRCODES[17] = {0, 0, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0};
+static BYTE STD_DC_UV_NRCODES[17] = {0, 0, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0};
 
-static unsigned char STD_DC_UV_VALUES[12] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+static BYTE STD_DC_UV_VALUES[12] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
 
-static unsigned char STD_AC_Y_NRCODES[17] = {0, 0, 2, 1, 3, 3, 2, 4, 3, 5, 5, 4, 4, 0, 0, 1, 0X7D};
+static BYTE STD_AC_Y_NRCODES[17] = {0, 0, 2, 1, 3, 3, 2, 4, 3, 5, 5, 4, 4, 0, 0, 1, 0X7D};
 
-static unsigned char STD_AC_Y_VALUES[162] = {
+static BYTE STD_AC_Y_VALUES[162] = {
         0x01, 0x02, 0x03, 0x00, 0x04, 0x11, 0x05, 0x12,
         0x21, 0x31, 0x41, 0x06, 0x13, 0x51, 0x61, 0x07,
         0x22, 0x71, 0x14, 0x32, 0x81, 0x91, 0xa1, 0x08,
@@ -105,9 +114,9 @@ static unsigned char STD_AC_Y_VALUES[162] = {
         0xf9, 0xfa
 };
 
-static unsigned char STD_AC_UV_NRCODES[17] = {0, 0, 2, 1, 2, 4, 4, 3, 4, 7, 5, 4, 4, 0, 1, 2, 0X77};
+static BYTE STD_AC_UV_NRCODES[17] = {0, 0, 2, 1, 2, 4, 4, 3, 4, 7, 5, 4, 4, 0, 1, 2, 0X77};
 
-static unsigned char STD_AC_UV_VALUES[162] = {
+static BYTE STD_AC_UV_VALUES[162] = {
         0x00, 0x01, 0x02, 0x03, 0x11, 0x04, 0x05, 0x21,
         0x31, 0x06, 0x12, 0x41, 0x51, 0x07, 0x61, 0x71,
         0x13, 0x22, 0x32, 0x81, 0x08, 0x14, 0x42, 0x91,
@@ -140,69 +149,69 @@ typedef struct tagJPEGAPP0 {
     unsigned short length;
     char id[5];
     unsigned short ver;
-    unsigned char densityUnit;
+    BYTE densityUnit;
     unsigned short densityX;
     unsigned short densityY;
-    unsigned char thp;
-    unsigned char tvp;
+    BYTE thp;
+    BYTE tvp;
 } JPEGAPP0;
 
 typedef struct tagJPEGDQT_8BITS {
     unsigned short segmentTag;
     unsigned short length;
-    unsigned char tableInfo;
-    unsigned char table[64];
+    BYTE tableInfo;
+    BYTE table[64];
 } JPEGDQT_8BITS;
 
 typedef struct tagJPEGSOF0_24BITS {
     unsigned short segmentTag;
     unsigned short length;
-    unsigned char precision;
+    BYTE precision;
     unsigned short height;
     unsigned short width;
-    unsigned char sigNum;
-    unsigned char YID;
-    unsigned char HVY;
-    unsigned char QTY;
-    unsigned char UID;
-    unsigned char HVU;
-    unsigned char QTU;
-    unsigned char VID;
-    unsigned char HVV;
-    unsigned char QTV;
+    BYTE sigNum;
+    BYTE YID;
+    BYTE HVY;
+    BYTE QTY;
+    BYTE UID;
+    BYTE HVU;
+    BYTE QTU;
+    BYTE VID;
+    BYTE HVV;
+    BYTE QTV;
 } JPEGSOF0_24BITS;
 
 typedef struct tagJPEGDHT {
     unsigned short segmentTag;
     unsigned short length;
-    unsigned char tableInfo;
-    unsigned char huffCode[16];
+    BYTE tableInfo;
+    BYTE huffCode[16];
 } JPEGDHT;
 
 typedef struct tagJPEGSOS_24BITS {
     unsigned short segmentTag;
     unsigned short length;
-    unsigned char sigNum;
-    unsigned char YID;
-    unsigned char HTY;
-    unsigned char UID;
-    unsigned char HTU;
-    unsigned char VID;
-    unsigned char HTV;
-    unsigned char Ss;
-    unsigned char Se;
-    unsigned char Bf;
+    BYTE sigNum;
+    BYTE YID;
+    BYTE HTY;
+    BYTE UID;
+    BYTE HTU;
+    BYTE VID;
+    BYTE HTV;
+    BYTE Ss;
+    BYTE Se;
+    BYTE Bf;
 } JPEGSOS_24BITS;
 
 typedef struct tagACSYM {
-    unsigned char zeroLen;
-    unsigned char codeLen;
+    BYTE zeroLen;
+    BYTE codeLen;
     short amplitude;
 } ACSYM;
 
 typedef struct tagSYM2 {
     short amplitude;
-    unsigned char codeLen;
+    BYTE codeLen;
 } SYM2;
 
 typedef struct tagBMBUFINFO {
@@ -211,42 +220,41 @@ typedef struct tagBMBUFINFO {
     unsigned int buffWidth;
     unsigned int buffHeight;
     unsigned short BitCount;
-    unsigned char padSize;
+    BYTE padSize;
 } BMBUFINFO;
 
-void ProcessUV(unsigned char *pUVBuf, unsigned char *pTmpUVBuf, int width, int height, int nStride);
+void ProcessUV(BYTE *pUVBuf, BYTE *pTmpUVBuf, int width, int height, int nStride);
 
 int QualityScaling(int quality);
 
-void DivBuff(unsigned char *pBuf, int width, int height, int nStride, int xLen, int yLen);
+void DivBuff(BYTE *pBuf, int width, int height, int nStride, int xLen, int yLen);
 
-void SetQuantTable(unsigned char *std_QT, unsigned char *QT, int Q);
+void SetQuantTable(BYTE *std_QT, BYTE *QT, int Q);
 
 void InitQTForAANDCT(JPEGINFO *pJpgInfo);
 
 void BuildVLITable(JPEGINFO *pJpgInfo);
 
-int WriteSOI(unsigned char *pOut, int nDataLen);
+int WriteSOI(BYTE *pOut, int nDataLen);
 
-int WriteEOI(unsigned char *pOut, int nDataLen);
+int WriteEOI(BYTE *pOut, int nDataLen);
 
-int WriteAPP0(unsigned char *pOut, int nDataLen);
+int WriteAPP0(BYTE *pOut, int nDataLen);
 
-int WriteDQT(JPEGINFO *pJpgInfo, unsigned char *pOut, int nDataLen);
+int WriteDQT(JPEGINFO *pJpgInfo, BYTE *pOut, int nDataLen);
 
-int WriteSOF(unsigned char *pOut, int nDataLen, int width, int height);
+int WriteSOF(BYTE *pOut, int nDataLen, int width, int height);
 
-int WriteDHT(unsigned char *pOut, int nDataLen);
+int WriteDHT(BYTE *pOut, int nDataLen);
 
-int WriteSOS(unsigned char *pOut, int nDataLen);
+int WriteSOS(BYTE *pOut, int nDataLen);
 
-void BuildSTDHuffTab(unsigned char *nrcodes, unsigned char *stdTab, HUFFCODE *huffCode);
+void BuildSTDHuffTab(BYTE *nrcodes, BYTE *stdTab, HUFFCODE *huffCode);
 
-int ProcessData(JPEGINFO *pJpgInfo, unsigned char *lpYBuf, unsigned char *lpUBuf,
-                unsigned char *lpVBuf, int width, int height, int yBufLen, int uBufLen, int vBufLen,
-                unsigned char *pOut, int nDataLen);
+int ProcessData(JPEGINFO *pJpgInfo, BYTE *lpYBuf, BYTE *lpUBuf, BYTE *lpVBuf, int width, int height,
+                int yBufLen, int uBufLen, int vBufLen, BYTE *pOut, int nDataLen);
 
-int YUV2Jpg(unsigned char *in_Y, unsigned char *in_U, unsigned char *in_V, int width, int height,
-            int quality, int nStride, unsigned char *pOut, unsigned long *pnOutSize);
+int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int quality, int nStride,
+            BYTE *pOut, unsigned long *pnOutSize);
 
 #endif
