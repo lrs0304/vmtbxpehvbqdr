@@ -464,7 +464,7 @@ void FDCT(float *lpBuff) {
 
 int WriteBitsStream(JPEGINFO *pJpgInfo, unsigned short value, BYTE codeLen, BYTE *pOut,
                     int nDataLen) {
-    int posval;//bit position in the bitstring we read, should be<=15 and >=0
+    signed char posval;//bit position in the bitstring we read, should be<=15 and >=0
     posval = codeLen - 1;
     while (posval >= 0) {
         if (value & mask[posval]) {

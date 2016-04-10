@@ -7,29 +7,45 @@ jstring Java_com_legaocar_rison_android_util_NativeUtil_stringFromJNI(JNIEnv *en
     return env->NewStringUTF("Lego Control Sever");
 }
 
+BYTE *in_Y = NULL, *in_U = NULL, *in_V = NULL;
+
+/**
+ * 创建临时内存变量，避免频繁申请
+ */
+void initEncoder(int width, int height) {
+    if (in_Y == NULL) {
+        size_t totalPixels = (size_t) width * height;
+        in_Y = (BYTE *) malloc(totalPixels);
+        in_U = (BYTE *) malloc(totalPixels >> 1);
+        in_V = (BYTE *) malloc(totalPixels >> 1);
+    }
+
+}
+
+void Java_com_legaocar_rison_android_util_NativeUtil_initJpegEncoder
+        (JNIEnv *env, jclass, int width, int height) {
+    initEncoder(width, height);
+}
+
 /**
  * format 参数暂时不使用。
  */
 jlong Java_com_legaocar_rison_android_util_NativeUtil_compressYuvToJpeg
-        (JNIEnv *env, jclass, jbyteArray byteYuv, jbyteArray byteJpg,
+        (JNIEnv *env, jclass obj, jbyteArray byteYuv, jbyteArray byteJpg,
          int format, int quality, int width, int height) {
     jboolean isCopy = JNI_TRUE;
     jbyte *yuv = env->GetByteArrayElements(byteYuv, NULL);
     jbyte *jpg = env->GetByteArrayElements(byteJpg, &isCopy);
 
-    BYTE *in_Y = (BYTE *) malloc(width * height);//
-    BYTE *in_U = (BYTE *) malloc(width * height / 2);//
-    BYTE *in_V = (BYTE *) malloc(width * height / 2);//
+    if (in_Y == NULL) {
+        initEncoder(width, height);
+    }
 
     unsigned long dwSize = 0;
 
     get_Y_U_V((BYTE *) yuv, in_Y, in_U, in_V, width, height);
 
     YUV2Jpg(in_Y, in_U, in_V, width, height, quality, width, (BYTE *) jpg, &dwSize);
-
-    free(in_Y);
-    free(in_U);
-    free(in_V);
 
     /**
      * 调用了Get就必须调用Release
@@ -86,4 +102,13 @@ void get_Y_U_V(const BYTE *yuv, BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, i
 
 }
 
-
+/**
+ * 释放临时变量
+ */
+void Java_com_legaocar_rison_android_util_NativeUtil_releaseJpegEncoder(JNIEnv *env, jclass) {
+    if (in_Y != NULL) {
+        free(in_Y);
+        free(in_U);
+        free(in_V);
+    }
+}

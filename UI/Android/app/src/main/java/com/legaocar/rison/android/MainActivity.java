@@ -1,5 +1,8 @@
 package com.legaocar.rison.android;
 
+import android.graphics.ImageFormat;
+import android.graphics.Rect;
+import android.graphics.YuvImage;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
@@ -12,6 +15,7 @@ import com.legaocar.rison.android.util.NativeUtil;
 import com.legaocar.rison.android.util.NetWorkUtil;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.util.Properties;
 
@@ -85,6 +89,32 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                             byte[] newJpg = new byte[size];
                             System.arraycopy(jpg, 0, newJpg, 0, size);
                             return new ByteArrayInputStream(newJpg);
+                        } catch (final Exception e) {
+                            return null;
+                        }
+                    }
+                });
+
+                mWebServer.registerStream("/video/capture2.jpg", new LegoHttpServer.CommonGatewayInterface() {
+                    @Override
+                    public String run(Properties params) {
+                        return null;
+                    }
+
+                    @Override
+                    public InputStream streaming(Properties params) {
+
+                        try {
+                            InputStream in = getResources().openRawResource(R.raw.origin);
+                            int length = in.available();
+                            byte[] originYUV = new byte[length];
+                            in.read(originYUV);
+
+                            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                            YuvImage mYuvImage = new YuvImage(originYUV, ImageFormat.NV21, 480, 320, null);
+                            mYuvImage.compressToJpeg(new Rect(0, 0, 480, 320), 75, outputStream);
+
+                            return new ByteArrayInputStream(outputStream.toByteArray());
                         } catch (final Exception e) {
                             return null;
                         }

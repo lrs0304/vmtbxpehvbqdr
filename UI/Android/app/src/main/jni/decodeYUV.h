@@ -17,9 +17,15 @@ void get_Y_U_V(const BYTE *yuv, BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, i
 // hello world
 jstring Java_com_legaocar_rison_android_util_NativeUtil_stringFromJNI(JNIEnv *env, jclass);
 
+void initEncoder(int width, int height);
+void Java_com_legaocar_rison_android_util_NativeUtil_initJpegEncoder
+        (JNIEnv *env, jclass, int width, int height);
+
 jlong Java_com_legaocar_rison_android_util_NativeUtil_compressYuvToJpeg
         (JNIEnv *env, jclass, jbyteArray byteYuv, jbyteArray byteJpg,
          int format, int quality, int width, int height);
+
+void Java_com_legaocar_rison_android_util_NativeUtil_releaseJpegEncoder(JNIEnv *env, jclass);
 
 #ifdef __cplusplus
 }

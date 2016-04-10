@@ -36,7 +36,7 @@ typedef struct tagJPEGINFO {
     HUFFCODE STD_AC_Y_HT[256];
     HUFFCODE STD_AC_UV_HT[256];
     BYTE bytenew;
-    __signed char bytepos;
+    signed char bytepos;
 } JPEGINFO;
 
 static unsigned short SOITAG = 0xD8FF;

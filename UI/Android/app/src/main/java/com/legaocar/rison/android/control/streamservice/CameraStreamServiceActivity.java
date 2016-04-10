@@ -17,6 +17,7 @@ import com.legaocar.rison.android.control.mjpegstreamer.MJpegStream;
 import com.legaocar.rison.android.server.LegoHttpServer;
 import com.legaocar.rison.android.util.MLogUtil;
 import com.legaocar.rison.android.util.MToastUtil;
+import com.legaocar.rison.android.util.NativeUtil;
 import com.legaocar.rison.android.util.NetWorkUtil;
 
 import java.io.ByteArrayInputStream;
@@ -36,8 +37,11 @@ import java.util.concurrent.locks.ReentrantLock;
 public class CameraStreamServiceActivity extends AppCompatActivity implements CameraView.CameraReadyCallback {
     private static final String TAG = CameraStreamServiceActivity.class.getSimpleName();
 
+    private static final String ORIGIN_URL = "/video/origin.yuv";
     private static final String CAPTURE_URL = "/video/capture.jpg";
     private static final String VIDEO_STREAM_URL = "/video/live.mjpg";
+
+    private static final int COMPRESS_QUALITY = 75;
 
     private int mPictureWidth = 480;
     private int mPictureHeight = 360;
@@ -46,7 +50,8 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
     private ReentrantLock mPreviewLock = new ReentrantLock();
 
     private int mVideoPreViewFormat = ImageFormat.NV21;
-    private byte[] mFrameData = null;
+    private byte[] mFrameData = null, mTempBuffer = null;
+    private int mFrameConvertImageLength = 0;
     private byte[] mFrameConvertImage = null;
 
     private LegoHttpServer mWebServer;
@@ -80,8 +85,9 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
             finish();
         } else {
             initCamera();
-            mWebServer.registerStream(VIDEO_STREAM_URL, mVideoProcessor);
+            mWebServer.registerStream(ORIGIN_URL, mOriginProcessor);
             mWebServer.registerStream(CAPTURE_URL, mCaptureProcessor);
+            mWebServer.registerStream(VIDEO_STREAM_URL, mVideoProcessor);
         }
     }
 
@@ -157,6 +163,7 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
         mCaptureProcessor = null;
         mVideoProcessor = null;
         if (mWebServer != null) {
+            mWebServer.registerCGI(ORIGIN_URL, null);
             mWebServer.registerStream(CAPTURE_URL, null);
             mWebServer.registerStream(VIDEO_STREAM_URL, null);
         }
@@ -166,8 +173,11 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
         for (DataStream videoStream : mVideoStreams) {
             videoStream.release();
         }
+
+        NativeUtil.getInstance().releaseJpegEncoder();
     }
 
+    @SuppressWarnings("deprecation")
     private Camera.PreviewCallback previewCallBack = new Camera.PreviewCallback() {
         public void onPreviewFrame(byte[] frame, Camera c) {
             mPreviewLock.lock();
@@ -190,6 +200,8 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
 
         if (mFrameData == null) {
             mFrameData = new byte[yuvFrame.length];
+            // 初始化编码模块
+            NativeUtil.getInstance().initJpegEncoder(mPictureWidth, mPictureHeight);
         }
         System.arraycopy(yuvFrame, 0, mFrameData, 0, yuvFrame.length);
 
@@ -197,12 +209,7 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
         mImageExecutor.execute(mImageEncodingTask);
     }
 
-    //// TODO: 16-3-23 应该用C代码加快转换速度
     private class ImageEncodingTask implements Runnable {
-
-        private ByteArrayOutputStream mOutputStream = new ByteArrayOutputStream();
-        private Rect mArea;
-        private YuvImage mYuvImage;
 
         public ImageEncodingTask() {
         }
@@ -226,27 +233,25 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
                 case ImageFormat.NV21:
                 case ImageFormat.YUY2:
                 case ImageFormat.YV12:
-                    if (mArea == null) {
-                        mArea = new Rect(0, 0, mPictureWidth, mPictureHeight);
+                    if (mFrameConvertImage == null) {
+                        mFrameConvertImage = new byte[mFrameData.length << 1];
+                        mTempBuffer = new byte[mFrameConvertImage.length];
                     }
 
-                    mOutputStream.reset();
-                    mYuvImage = new YuvImage(mFrameData, mVideoPreViewFormat, mPictureWidth, mPictureHeight, null);
-                    mYuvImage.compressToJpeg(mArea, 75, mOutputStream);
-                    if (mFrameConvertImage == null || mFrameConvertImage.length < mOutputStream.size()) {
-                        mFrameConvertImage = new byte[mOutputStream.size()];
-                    }
-                    System.arraycopy(mOutputStream.toByteArray(), 0, mFrameConvertImage, 0, mOutputStream.size());
+                    mFrameConvertImageLength = (int) NativeUtil.getInstance()
+                            .compressYuvToJpeg(
+                                    mFrameData,
+                                    mTempBuffer,
+                                    mVideoPreViewFormat,
+                                    COMPRESS_QUALITY,
+                                    mPictureWidth,
+                                    mPictureHeight);
+                    System.arraycopy(mTempBuffer, 0, mFrameConvertImage, 0, mFrameConvertImageLength);
                     break;
 
                 default:
-                    mOutputStream.reset();
                     MLogUtil.e(TAG, "no frame image");
             }
-
-            //synchronized (CameraStreamServiceActivity.this) {
-            // 锁
-            //}
 
             isProcessing = false;
         }
@@ -256,7 +261,6 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
      * 负责上传单张图片
      */
     private LegoHttpServer.CommonGatewayInterface mCaptureProcessor = new LegoHttpServer.CommonGatewayInterface() {
-        InputStream mInputStream;
 
         @Override
         public String run(Properties params) {
@@ -266,9 +270,27 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
         @Override
         public InputStream streaming(Properties params) {
             if (mFrameConvertImage != null) {
-                mInputStream = new ByteArrayInputStream(mFrameData);
-//                params.put("mime", "image/jpeg");
-                return mInputStream;
+                params.put("mime", "image/jpeg");
+                return new ByteArrayInputStream(mFrameConvertImage, 0, mFrameConvertImageLength);
+            }
+            return null;
+        }
+    };
+
+    /**
+     * 负责上传源图像
+     */
+    private LegoHttpServer.CommonGatewayInterface mOriginProcessor = new LegoHttpServer.CommonGatewayInterface() {
+
+        @Override
+        public String run(Properties params) {
+            return null;
+        }
+
+        @Override
+        public InputStream streaming(Properties params) {
+            if (mFrameConvertImage != null) {
+                return new ByteArrayInputStream(mFrameData);
             }
             return null;
         }
@@ -341,7 +363,7 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
                         break;
                     }
                     try {
-                        videoStream.sendFrame(mFrameConvertImage, mFrameConvertImage.length, timeStamp);
+                        videoStream.sendFrame(mFrameConvertImage, mFrameConvertImageLength, timeStamp);
                         if (!videoStream.isAlive()) {
                             invalidVideoStreams.add(videoStream);
                         }

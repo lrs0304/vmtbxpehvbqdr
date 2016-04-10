@@ -117,7 +117,7 @@ public class CameraView implements Callback {
         PixelFormat pixelFormat = new PixelFormat();
         PixelFormat.getPixelFormatInfo(ImageFormat.NV21, pixelFormat);
         int bufSize = procSize_.width * procSize_.height * pixelFormat.bitsPerPixel / 8;
-        byte[] buffer = null;
+        byte[] buffer;
         for (int i = 0; i < bufNumber; i++) {
             buffer = new byte[bufSize];
             camera_.addCallbackBuffer(buffer);

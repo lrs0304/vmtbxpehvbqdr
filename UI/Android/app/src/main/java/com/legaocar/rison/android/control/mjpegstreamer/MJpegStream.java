@@ -94,6 +94,7 @@ public final class MJpegStream extends DataStream {
      */
     private byte[] mBufferA;
     private byte[] mBufferB;
+    private int mBufferALength, mBufferBLength;
     private long mTimeStampA;
     private long mTimeStampB;
     private int mBufferLength;
@@ -156,6 +157,7 @@ public final class MJpegStream extends DataStream {
             }
 
             sendBuffer = mBufferB;
+            mBufferBLength = length;
             mTimeStampB = timestamp;
             isNewJpeg = NEW_JPG_A;
         } else {
@@ -164,6 +166,7 @@ public final class MJpegStream extends DataStream {
             }
 
             sendBuffer = mBufferA;
+            mBufferALength = length;
             mTimeStampA = timestamp;
             isNewJpeg = NEW_JPG_B;
         }
@@ -223,6 +226,7 @@ public final class MJpegStream extends DataStream {
             byte[] bufferSend;
             byte[] boundaryLine = MJpegStreamBoundaryLine.getBytes();
             long timestamp;
+            int bufferLength;
             String frameHeader;
             OutputStream outputStream;
 
@@ -249,9 +253,11 @@ public final class MJpegStream extends DataStream {
                 isStreamingBufferA = !isStreamingBufferA;
                 if (isStreamingBufferA) {
                     bufferSend = mBufferA;
+                    bufferLength = mBufferALength;
                     timestamp = mTimeStampA;
                 } else {
                     bufferSend = mBufferB;
+                    bufferLength = mBufferBLength;
                     timestamp = mTimeStampB;
                 }
 
@@ -260,7 +266,7 @@ public final class MJpegStream extends DataStream {
                 try {
                     outputStream = getOutputStream();
                     outputStream.write(frameHeader.getBytes());
-                    outputStream.write(bufferSend);
+                    outputStream.write(bufferSend, 0, bufferLength);
                     outputStream.write(boundaryLine);
                     outputStream.flush();
 
