@@ -78,29 +78,27 @@ jlong Java_com_legaocar_rison_android_util_NativeUtil_compressYuvToJpeg
 //比较详细的YUV格式 http://stackoverflow.com/questions/5272388/extract-black-and-white-image-from-android-cameras-nv21-format
 void get_Y_U_V(const BYTE *yuv, BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height) {
 
-    int frameSize = width * height;
+    int frameSize = width * height, uvp;
 
-    int y_n = 0, u_n = 0, v_n = 0;
+    BYTE u = 0, v = 0;
 
-    for (int i = 0; i < height; i++) {
-        for (int j = 0; j < width; j++) {
-            in_Y[y_n++] = yuv[i * width + j];
-
-            if (j % 2 == 0) {// 只要单数列的UV
-
-                if (i % 2 == 0) {//第一行
-                    in_U[u_n++] = yuv[frameSize + i * width / 2];
-                    in_V[v_n++] = yuv[frameSize + i * width / 2 + 1];
-                } else { // 第二行
-                    in_U[u_n] = in_U[u_n - width / 2];
-                    u_n++;
-                    in_V[v_n] = in_V[v_n - width / 2];
-                    v_n++;
-                }
+    for (int j = 0, yp = 0; j < height; j++) {
+        uvp = frameSize + (j >> 1) * width;
+        for (int i = 0; i < width; i++, yp++) {
+            in_Y[yp] = yuv[yp];
+            if (in_Y[yp] < 0) {
+                in_Y[yp] = 0;
             }
+
+            if ((i & 1) == 0) {
+                v = yuv[uvp++];
+                u = yuv[uvp++];
+            }
+
+            in_V[yp] = v;
+            in_U[yp] = u;
         }
     }
-
 }
 
 /**
