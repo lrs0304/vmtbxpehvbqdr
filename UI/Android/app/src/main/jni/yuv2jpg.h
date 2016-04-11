@@ -223,8 +223,6 @@ typedef struct tagBMBUFINFO {
     BYTE padSize;
 } BMBUFINFO;
 
-void ProcessUV(BYTE *pUVBuf, BYTE *pTmpUVBuf, int width, int height, int nStride);
-
 int QualityScaling(int quality);
 
 void DivBuff(BYTE *pBuf, int width, int height, int nStride, int xLen, int yLen);
