@@ -14,9 +14,9 @@
 
 typedef uint8_t BYTE;
 
-//#include <android/log.h>
-//#define  MY_TAG    "Legao Server Native"
-//#define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, MY_TAG, __VA_ARGS__))
+#include <android/log.h>
+#define  MY_TAG    "Legao Server Native"
+#define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, MY_TAG, __VA_ARGS__))
 
 typedef struct tagHUFFCODE {
     unsigned short code;

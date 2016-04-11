@@ -4,6 +4,7 @@
 
 // hello world
 jstring Java_com_legaocar_rison_android_util_NativeUtil_stringFromJNI(JNIEnv *env, jclass) {
+    LOGI("Lego Control Sever %d\n", 1);
     return env->NewStringUTF("Lego Control Sever");
 }
 
