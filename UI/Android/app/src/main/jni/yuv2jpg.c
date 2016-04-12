@@ -7,7 +7,7 @@ int QualityScaling(int quality) {
     if (quality < 50)
         quality = 5000 / quality;
     else
-        quality = 200 - quality << 1;
+        quality = 200 - (quality << 1);
 
     return quality;
 }
@@ -674,7 +674,8 @@ int ProcessData(JPEGINFO *pJpgInfo, BYTE *lpYBuf, BYTE *lpUBuf, BYTE *lpVBuf, in
     return nDataLen;
 }
 
-int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int quality, int nStride, BYTE *pOut, unsigned long *pnOutSize) {
+int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int quality, int nStride,
+            BYTE *pOut, unsigned long *pnOutSize) {
 
     //LOGI("start");
     BYTE *pYBuf;
