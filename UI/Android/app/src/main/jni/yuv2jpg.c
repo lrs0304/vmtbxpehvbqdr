@@ -677,13 +677,13 @@ int ProcessData(JPEGINFO *pJpgInfo, BYTE *lpYBuf, BYTE *lpUBuf, BYTE *lpVBuf, in
 int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int quality, int nStride,
             BYTE *pOut, unsigned long *pnOutSize) {
 
-    LOGI("start");
+    //LOGI("start");
     BYTE *pYBuf;
     unsigned char *pUBuf;
     unsigned char *pVBuf;
     int nYLen = nStride * height;
 
-    LOGI("init jpgInfo");
+    //LOGI("init jpgInfo");
     int nDataLen;
     JPEGINFO JpgInfo;
     memset(&JpgInfo, 0, sizeof(JPEGINFO));
@@ -693,12 +693,14 @@ int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int quali
     pYBuf = (BYTE *) malloc(nYLen);
     memset(pYBuf, 0, nYLen);
     memcpy(pYBuf, in_Y, nYLen);
-    LOGI("finish copy ybuf");
+    //LOGI("finish copy ybuf");
     pUBuf = (unsigned char *) malloc(nYLen);
     pVBuf = (unsigned char *) malloc(nYLen);
+    memset(pUBuf, 0, nYLen);
     memcpy(pUBuf, in_U, nYLen);
+    memset(pVBuf, 0, nYLen);
     memcpy(pVBuf, in_V, nYLen);
-    LOGI("finish copy u,n buf");
+    //LOGI("finish copy u,n buf");
 //    memset(pUBuf, 0, nYLen);
 //    memset(pVBuf, 0, nYLen);
 
@@ -709,17 +711,17 @@ int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int quali
     DivBuff(pUBuf, width, height, nStride, DCTSIZE, DCTSIZE);
     DivBuff(pVBuf, width, height, nStride, DCTSIZE, DCTSIZE);
 
-    LOGI("finish 分块");
+    //LOGI("finish 分块");
     quality = QualityScaling(quality);
     SetQuantTable(std_Y_QT, JpgInfo.YQT, quality);
     SetQuantTable(std_UV_QT, JpgInfo.UVQT, quality);
 
-    LOGI("quality table");
+    //LOGI("quality table");
     InitQTForAANDCT(&JpgInfo);
     JpgInfo.pVLITAB = JpgInfo.VLI_TAB + 2048;
     BuildVLITable(&JpgInfo);
 
-    LOGI("build vli table");
+    //LOGI("build vli table");
     nDataLen = 0;
 
     nDataLen = WriteSOI(pOut, nDataLen);
@@ -729,20 +731,20 @@ int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int quali
     nDataLen = WriteDHT(pOut, nDataLen);
     nDataLen = WriteSOS(pOut, nDataLen);
 
-    LOGI("finish write");
+    //LOGI("finish write");
     BuildSTDHuffTab(STD_DC_Y_NRCODES, STD_DC_Y_VALUES, JpgInfo.STD_DC_Y_HT);
     BuildSTDHuffTab(STD_AC_Y_NRCODES, STD_AC_Y_VALUES, JpgInfo.STD_AC_Y_HT);
     BuildSTDHuffTab(STD_DC_UV_NRCODES, STD_DC_UV_VALUES, JpgInfo.STD_DC_UV_HT);
     BuildSTDHuffTab(STD_AC_UV_NRCODES, STD_AC_UV_VALUES, JpgInfo.STD_AC_UV_HT);
 
-    LOGI("finish hufman");
+    //LOGI("finish hufman");
     nDataLen = ProcessData(&JpgInfo, pYBuf, pUBuf, pVBuf, width, height, nYLen, nYLen, nYLen, pOut,
                            nDataLen);
 
-    LOGI("finish process yuv");
+    //LOGI("finish process yuv");
     nDataLen = WriteEOI(pOut, nDataLen);
 
-    LOGI("write eoi");
+    //LOGI("write eoi");
     free(pYBuf);
     free(pUBuf);
     free(pVBuf);

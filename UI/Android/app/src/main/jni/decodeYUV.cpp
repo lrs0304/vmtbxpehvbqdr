@@ -14,11 +14,15 @@ BYTE *in_Y = NULL, *in_U = NULL, *in_V = NULL;
  * 创建临时内存变量，避免频繁申请
  */
 void initEncoder(int width, int height) {
+    LOGI("init encoder");
     if (in_Y == NULL) {
+        LOGI("init encoder1");
         size_t totalPixels = (size_t) width * height;
-        in_Y = (BYTE *) malloc(totalPixels);
-        in_U = (BYTE *) malloc(totalPixels >> 1);
-        in_V = (BYTE *) malloc(totalPixels >> 1);
+        in_Y = new BYTE[totalPixels];
+        LOGI("init encoder2");
+        in_U = new BYTE[totalPixels];
+        in_V = new BYTE[totalPixels];
+        LOGI("init encoder3");
     }
 
 }
@@ -34,24 +38,24 @@ void Java_com_legaocar_rison_android_util_NativeUtil_initJpegEncoder
 jlong Java_com_legaocar_rison_android_util_NativeUtil_compressYuvToJpeg
         (JNIEnv *env, jclass obj, jbyteArray byteYuv, jbyteArray byteJpg,
          int format, int quality, int width, int height) {
+    //LOGI("hi, rison");
     jboolean isCopy = JNI_TRUE;
     jbyte *yuv = env->GetByteArrayElements(byteYuv, NULL);
     jbyte *jpg = env->GetByteArrayElements(byteJpg, &isCopy);
 
     if (in_Y == NULL) {
         initEncoder(width, height);
-        LOGI("init encoder");
     }
 
     unsigned long dwSize = 0;
 
-    LOGI("get yuv");
+    //LOGI("get yuv");
     get_Y_U_V((BYTE *) yuv, in_Y, in_U, in_V, width, height);
 
-    LOGI("yuv convert");
+    //LOGI("yuv convert");
     YUV2Jpg(in_Y, in_U, in_V, width, height, quality, width, (BYTE *) jpg, &dwSize);
 
-    LOGI("release");
+    //LOGI("release");
     /**
      * 调用了Get就必须调用Release
      * The array is returned to the calling Java language method, which in turn,
@@ -71,7 +75,7 @@ jlong Java_com_legaocar_rison_android_util_NativeUtil_compressYuvToJpeg
     env->ReleaseByteArrayElements(byteYuv, yuv, JNI_ABORT);
     env->ReleaseByteArrayElements(byteJpg, jpg, 0);
 
-    LOGI("finish");
+    //LOGI("finish");
     return dwSize;
 }
 
@@ -81,15 +85,16 @@ jlong Java_com_legaocar_rison_android_util_NativeUtil_compressYuvToJpeg
 // NV21--->YYYYYYYY UVUV
 //https://wiki.videolan.org/YUV#NV21
 //比较详细的YUV格式 http://stackoverflow.com/questions/5272388/extract-black-and-white-image-from-android-cameras-nv21-format
-/*void get_Y_U_V(const BYTE *yuv, BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height) {
+void get_Y_U_V(const BYTE *yuv, BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height) {
 
-    int frameSize = width * height, uvp;
+    long frameSize = width * height, uvp;
 
     BYTE u = 0, v = 0;
 
     for (int j = 0, yp = 0; j < height; j++) {
         uvp = frameSize + (j >> 1) * width;
-        for (int i = 0; i < width; i++, yp++) {
+        //LOGI("hehehe--->%d", yp);
+        for (int i = 0; i < width; i++) {
             in_Y[yp] = yuv[yp];
             if (in_Y[yp] < 0) {
                 in_Y[yp] = 0;
@@ -102,10 +107,12 @@ jlong Java_com_legaocar_rison_android_util_NativeUtil_compressYuvToJpeg
 
             in_V[yp] = v;
             in_U[yp] = u;
+
+            yp++;
         }
     }
-}*/
-void get_Y_U_V(const BYTE *yuv, BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height) {
+}
+/*void get_Y_U_V(const BYTE *yuv, BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height) {
 
     int frameSize = width * height;
 
@@ -130,15 +137,19 @@ void get_Y_U_V(const BYTE *yuv, BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, i
         }
     }
 
-}
+}*/
 
 /**
  * 释放临时变量
  */
 void Java_com_legaocar_rison_android_util_NativeUtil_releaseJpegEncoder(JNIEnv *env, jclass) {
     if (in_Y != NULL) {
-        free(in_Y);
-        free(in_U);
-        free(in_V);
+        delete[]in_Y;
+        in_Y = NULL;
+        LOGI("release encoder,in_Y is %s", in_Y == NULL ? "NULL" : "USE");
+        delete[]in_U;
+        in_U = NULL;
+        delete[]in_V;
+        in_V = NULL;
     }
 }
