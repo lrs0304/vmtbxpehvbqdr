@@ -1,6 +1,9 @@
 #include <jni.h>
+
 //// 声明使用C++编程
 //#define __cplusplus
+
+#define _ANDROID__
 
 extern "C" {
 #include "yuv2jpg.h"
@@ -12,7 +15,8 @@ extern "C" {
 #endif
 
 //分离YUV三通道
-void get_Y_U_V(const BYTE *yuv, BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height);
+void getYUVChannelOfNV21(const BYTE *nv21, BYTE *channelY, BYTE *channelU, BYTE *channelV,
+                         int width, int height);
 
 // hello world
 jstring Java_com_legaocar_rison_android_util_NativeUtil_stringFromJNI(JNIEnv *env, jclass);

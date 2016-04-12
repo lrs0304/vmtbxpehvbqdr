@@ -202,6 +202,7 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
             mFrameData = new byte[yuvFrame.length];
             // 初始化编码模块
             NativeUtil.getInstance().initJpegEncoder(mPictureWidth, mPictureHeight);
+            MLogUtil.i(TAG, "image:width=" + mPictureWidth + ", height=" + mPictureHeight);
         }
         System.arraycopy(yuvFrame, 0, mFrameData, 0, yuvFrame.length);
 

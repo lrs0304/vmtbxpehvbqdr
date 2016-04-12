@@ -1,4 +1,6 @@
 *~
+*.h.gch
+*.out
 *.iml
 .gradle
 /local.properties

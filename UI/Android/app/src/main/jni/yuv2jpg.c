@@ -1,9 +1,9 @@
 #include "yuv2jpg.h"
-#include <stdio.h>
 
 int QualityScaling(int quality) {
     if (quality <= 0) quality = 1;
     if (quality > 100) quality = 100;
+
     if (quality < 50)
         quality = 5000 / quality;
     else
@@ -674,13 +674,12 @@ int ProcessData(JPEGINFO *pJpgInfo, BYTE *lpYBuf, BYTE *lpUBuf, BYTE *lpVBuf, in
     return nDataLen;
 }
 
-int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int quality, int nStride,
-            BYTE *pOut, unsigned long *pnOutSize) {
+int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int quality, int nStride, BYTE *pOut, unsigned long *pnOutSize) {
 
     //LOGI("start");
     BYTE *pYBuf;
-    unsigned char *pUBuf;
-    unsigned char *pVBuf;
+    BYTE *pUBuf = in_U;
+    BYTE *pVBuf = in_V;
     int nYLen = nStride * height;
 
     //LOGI("init jpgInfo");
@@ -693,19 +692,9 @@ int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int quali
     pYBuf = (BYTE *) malloc(nYLen);
     memset(pYBuf, 0, nYLen);
     memcpy(pYBuf, in_Y, nYLen);
-    //LOGI("finish copy ybuf");
-    pUBuf = (unsigned char *) malloc(nYLen);
-    pVBuf = (unsigned char *) malloc(nYLen);
-    memset(pUBuf, 0, nYLen);
-    memcpy(pUBuf, in_U, nYLen);
-    memset(pVBuf, 0, nYLen);
-    memcpy(pVBuf, in_V, nYLen);
-    //LOGI("finish copy u,n buf");
-//    memset(pUBuf, 0, nYLen);
-//    memset(pVBuf, 0, nYLen);
-
-    //ProcessUV(pUBuf, in_U, width, height, nStride);
-    //ProcessUV(pVBuf, in_V, width, height, nStride);
+#ifdef _ANDROID__
+    LOGI("finish copy ybuf");
+#endif
 
     DivBuff(pYBuf, width, height, nStride, DCTSIZE, DCTSIZE);
     DivBuff(pUBuf, width, height, nStride, DCTSIZE, DCTSIZE);
@@ -746,8 +735,8 @@ int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int quali
 
     //LOGI("write eoi");
     free(pYBuf);
-    free(pUBuf);
-    free(pVBuf);
+//    free(pUBuf);
+//    free(pVBuf);
     *pnOutSize = nDataLen;
 
     return 0;
