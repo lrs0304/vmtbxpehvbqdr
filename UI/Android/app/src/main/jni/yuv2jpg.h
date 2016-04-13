@@ -10,14 +10,20 @@
 #define DC_MIN_QUANTED -2048
 
 //改个名字，容易理解
+#include <stdio.h>
 #include<stdint.h>
 
 typedef uint8_t BYTE;
+#define  MY_TAG    "Legao Server Native"
+#define _ANDROID__
+
 #ifdef _ANDROID__
+
 #include <android/log.h>
 
-#define  MY_TAG    "Legao Server Native"
 #define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, MY_TAG, __VA_ARGS__))
+#else
+#define LOGI(...) printf( __VA_ARGS__)
 #endif
 
 typedef struct tagHUFFCODE {

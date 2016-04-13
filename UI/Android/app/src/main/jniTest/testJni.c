@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdlib.h>
@@ -40,8 +39,7 @@ int get_Y_U_V(BYTE *yuv, BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int heig
 
 int main(int argc, char *argv[]) {
 
-    printf("start width=%s, height=%s\n", argv[2], argv[3]);
-
+    LOGI("start width=%s, height=%s\n", argv[2], argv[3]);
 
     int width = 480;
     int height = 320;
@@ -65,16 +63,16 @@ int main(int argc, char *argv[]) {
 
     fread(rData, width * height * 2, 1, rfp);
 
-    printf("get yuv\n");
+    LOGI("get yuv\n");
     get_Y_U_V(rData, in_Y, in_U, in_V, width, height);
 
-    printf("convert\n");
+    LOGI("convert\n");
     YUV2Jpg(in_Y, in_U, in_V, width, height, 75, width, pData, &dwSize);
     FILE *fp = fopen("3-1.jpg", "wb");
     fwrite(pData, dwSize, 1, fp);
     fclose(fp);
 
-    printf("end\n");
+    LOGI("end\n");
     free(in_Y);
     free(in_U);
     free(in_V);

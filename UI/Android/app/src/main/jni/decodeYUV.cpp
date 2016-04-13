@@ -1,10 +1,8 @@
-#include <stddef.h>
-#include <stdint.h>
 #include "decodeYUV.h"
 
 // hello world
 jstring Java_com_legaocar_rison_android_util_NativeUtil_stringFromJNI(JNIEnv *env, jclass) {
-    LOGI("Lego Control Sever %d", 1);
+    LOGI("Lego Control Sever %d\n", 1);
     return env->NewStringUTF("Lego Control Sever");
 }
 
@@ -86,13 +84,14 @@ void getYUVChannelOfNV21(const BYTE *nv21,
                          int width, int height) {
 
     long frameSize = width * height;
-    long currentPosition = 0, uvStartPosition = frameSize, uvPosition = 0;
+    long currentPosition = 0, uvStartPosition, uvPosition = 0;
 
     BYTE temU = 0, temV = 0;
 
+    uvStartPosition = frameSize - width;
     for (int j = 0; j < height; j++) {
         // 主要想避免乘法运算 uvPosition = frameSize + (j >> 1) * width;
-        if ((j & 1) == 1) {
+        if ((j & 1) == 0) {
             uvStartPosition += width;
         }
         uvPosition = uvStartPosition;
