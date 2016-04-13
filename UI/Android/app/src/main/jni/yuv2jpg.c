@@ -12,7 +12,12 @@ int QualityScaling(int quality) {
     return quality;
 }
 
-void DivBuff(BYTE *pBuf, int width, int height, int nStride, int xLen, int yLen) {
+/**
+ * 将width*height的一维数组重新组装成以xLen*yLen小矩阵为大矩阵的一维数组
+ * @param xLen x 向量的步长
+ * @param yLen y 向量的步长
+ */
+void divBufferInto8x8Matrix(BYTE *pBuf, int width, int height, int nStride, int xLen, int yLen) {
     int xBufs = width / xLen;
     int yBufs = height / yLen;
     int tmpBufLen = xBufs * xLen * yLen;
@@ -78,39 +83,31 @@ void InitQTForAANDCT(JPEGINFO *pJpgInfo) {
 
 BYTE ComputeVLI(short val) {
     BYTE binStrLen = 0;
-    if (val < 0) val *= -1;
+    if (val < 0) val = -val;
 
-    if (val == 1) {
+    if (val == 0) {
+        binStrLen = 0;
+    } else if (val == 1) {
         binStrLen = 1;
-    }
-    else if (val >= 2 && val <= 3) {
+    } else if (val <= 3) {
         binStrLen = 2;
-    }
-    else if (val >= 4 && val <= 7) {
+    } else if (val <= 7) {
         binStrLen = 3;
-    }
-    else if (val >= 8 && val <= 15) {
+    } else if (val <= 15) {
         binStrLen = 4;
-    }
-    else if (val >= 16 && val <= 31) {
+    } else if (val <= 31) {
         binStrLen = 5;
-    }
-    else if (val >= 32 && val <= 63) {
+    } else if (val <= 63) {
         binStrLen = 6;
-    }
-    else if (val >= 64 && val <= 127) {
+    } else if (val <= 127) {
         binStrLen = 7;
-    }
-    else if (val >= 128 && val <= 255) {
+    } else if (val <= 255) {
         binStrLen = 8;
-    }
-    else if (val >= 256 && val <= 511) {
+    } else if (val <= 511) {
         binStrLen = 9;
-    }
-    else if (val >= 512 && val <= 1023) {
+    } else if (val <= 1023) {
         binStrLen = 10;
-    }
-    else if (val >= 1024 && val <= 2047) {
+    } else if (val <= 2047) {
         binStrLen = 11;
     }
 
@@ -202,11 +199,15 @@ int WriteDQT(JPEGINFO *pJpgInfo, BYTE *pOut, int nDataLen) {
     return nDataLen;
 }
 
-
-unsigned short Intel2Moto(unsigned short val) {
-    BYTE highBits = (BYTE) (val / 256);
-    BYTE lowBits = (BYTE) (val % 256);
-    return lowBits * 256 + highBits;
+/**
+ *JPEG文件格式中，一个字（16位）的存储使用的是 Motorola 格式,
+ * 而不是 Intel 格式。也就是说, 一个字的高字节（高8位）在数据流的前面,
+ * 低字节（低8位）在数据流的后面，与平时习惯的Intel格式不一样。.
+ */
+unsigned short convertByteFromIntelToMotorola(unsigned short val) {
+    unsigned short highBits = val >> 8;
+    unsigned short lowBits = val & (unsigned short) 0xFF;
+    return lowBits << 8 | highBits;
 }
 
 
@@ -215,19 +216,19 @@ int WriteSOF(BYTE *pOut, int nDataLen, int width, int height) {
     SOF.segmentTag = 0xC0FF;
     SOF.length = 0x1100;
     SOF.precision = 0x08;
-    SOF.height = Intel2Moto((unsigned short) height);
-    SOF.width = Intel2Moto((unsigned short) width);
+    SOF.height = convertByteFromIntelToMotorola((unsigned short) height);
+    SOF.width = convertByteFromIntelToMotorola((unsigned short) width);
     SOF.sigNum = 0x03;
     SOF.YID = 0x01;
+    SOF.HVY = 0x11;
     SOF.QTY = 0x00;
     SOF.UID = 0x02;
+    SOF.HVU = 0x11;
     SOF.QTU = 0x01;
     SOF.VID = 0x03;
-    SOF.QTV = 0x01;
-    SOF.HVU = 0x11;
     SOF.HVV = 0x11;
-    SOF.HVY = 0x11;
-//	memcpy(pOut + nDataLen,&SOF,sizeof(SOF));
+    SOF.QTV = 0x01;
+
     memcpy(pOut + nDataLen, &SOF.segmentTag, 2);
     memcpy(pOut + nDataLen + 2, &SOF.length, 2);
     *(pOut + nDataLen + 4) = SOF.precision;
@@ -257,7 +258,7 @@ int WriteDHT(BYTE *pOut, int nDataLen) {
 
     JPEGDHT DHT;
     DHT.segmentTag = 0xC4FF;
-    DHT.length = Intel2Moto(19 + 12);
+    DHT.length = convertByteFromIntelToMotorola(19 + 12);
     DHT.tableInfo = 0x00;
     for (i = 0; i < 16; i++) {
         DHT.huffCode[i] = STD_DC_Y_NRCODES[i + 1];
@@ -284,7 +285,7 @@ int WriteDHT(BYTE *pOut, int nDataLen) {
     for (i = 0; i <= 11; i++) {
         nDataLen = WriteByte(STD_DC_UV_VALUES[i], pOut, nDataLen);
     }
-    DHT.length = Intel2Moto(19 + 162);
+    DHT.length = convertByteFromIntelToMotorola(19 + 162);
     DHT.tableInfo = 0x10;
     for (i = 0; i < 16; i++) {
         DHT.huffCode[i] = STD_AC_Y_NRCODES[i + 1];
@@ -678,7 +679,7 @@ int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int quali
             BYTE *pOut, unsigned long *pnOutSize) {
 
     //LOGI("start");
-    BYTE *pYBuf;
+    BYTE *pYBuf = in_Y;
     BYTE *pUBuf = in_U;
     BYTE *pVBuf = in_V;
     int nYLen = nStride * height;
@@ -690,18 +691,13 @@ int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int quali
     //printf("sizeof(JPEGINFO)=%d\n",sizeof(JPEGINFO));
     JpgInfo.bytenew = 0;
     JpgInfo.bytepos = 7;
-    pYBuf = (BYTE *) malloc(nYLen);
-    memset(pYBuf, 0, nYLen);
-    memcpy(pYBuf, in_Y, nYLen);
-#ifdef _ANDROID__
-    LOGI("finish copy ybuf");
-#endif
 
-    DivBuff(pYBuf, width, height, nStride, DCTSIZE, DCTSIZE);
-    DivBuff(pUBuf, width, height, nStride, DCTSIZE, DCTSIZE);
-    DivBuff(pVBuf, width, height, nStride, DCTSIZE, DCTSIZE);
 
-    //LOGI("finish 分块");
+    divBufferInto8x8Matrix(pYBuf, width, height, nStride, DCTSIZE, DCTSIZE);
+    divBufferInto8x8Matrix(pUBuf, width, height, nStride, DCTSIZE, DCTSIZE);
+    divBufferInto8x8Matrix(pVBuf, width, height, nStride, DCTSIZE, DCTSIZE);
+
+    LOGI("finish 分块\n");
     quality = QualityScaling(quality);
     SetQuantTable(std_Y_QT, JpgInfo.YQT, quality);
     SetQuantTable(std_UV_QT, JpgInfo.UVQT, quality);
@@ -735,7 +731,7 @@ int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int quali
     nDataLen = WriteEOI(pOut, nDataLen);
 
     //LOGI("write eoi");
-    free(pYBuf);
+//    free(pYBuf);
 //    free(pUBuf);
 //    free(pVBuf);
     *pnOutSize = nDataLen;

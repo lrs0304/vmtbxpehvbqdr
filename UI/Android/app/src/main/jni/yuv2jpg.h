@@ -26,6 +26,8 @@ typedef uint8_t BYTE;
 #define LOGI(...) printf( __VA_ARGS__)
 #endif
 
+// 标识 http://blog.csdn.net/lpt19832003/article/details/1713718
+//      http://blog.csdn.net/carson2005/article/details/7871238
 typedef struct tagHUFFCODE {
     unsigned short code;
     BYTE length;
@@ -233,7 +235,7 @@ typedef struct tagBMBUFINFO {
 
 int QualityScaling(int quality);
 
-void DivBuff(BYTE *pBuf, int width, int height, int nStride, int xLen, int yLen);
+void divBufferInto8x8Matrix(BYTE *pBuf, int width, int height, int nStride, int xLen, int yLen);
 
 void SetQuantTable(BYTE *std_QT, BYTE *QT, int Q);
 
