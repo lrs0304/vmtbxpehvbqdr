@@ -2,6 +2,8 @@
 
 /**
  * 将width*height的一维数组重新组装成以8*8小矩阵为大矩阵的一维数组
+ * <br/>
+ * JPEG算法的第一步，图像被分割成大小为8X8的小块，这些小块在整个压缩过程中都是单独被处理的
  */
 void divBufferInto8x8Matrix(BYTE *pBuf, int width, int height, int nStride) {
     size_t stepLen = DCTSIZE;
@@ -29,7 +31,16 @@ void divBufferInto8x8Matrix(BYTE *pBuf, int width, int height, int nStride) {
     free(tmpBuf);
 }
 
-int QualityScaling(int quality) {
+/**
+ * 图像压缩系数，取值范围 0 ～ 100 <br/>
+ * 返回校正后的quality系数
+ * The basic table is used as-is (scaling 100) for a quality of 50.
+ * Qualities 50..100 are converted to scaling percentage 200 - 2*Q;
+ * note that at Q=100 the scaling is 0, which will cause jpeg_add_quant_table
+ * to make all the table entries 1 (hence, minimum quantization loss).
+ * Qualities 1..50 are converted to scaling percentage 5000/Q.
+ */
+int qualityScaling(int quality) {
     if (quality <= 0) quality = 1;
     if (quality > 100) quality = 100;
 
@@ -41,52 +52,61 @@ int QualityScaling(int quality) {
     return quality;
 }
 
-void SetQuantTable(BYTE *std_QT, BYTE *QT, int Q) {
+/**
+ * 根据质量系数来重新生成标准量化系数矩阵
+ */
+void scaleSTDQuantizationTable(BYTE *y_QuantizationTable, BYTE *uv_QuantizationTable, int quality) {
     int tmpVal = 0;
     int i;
     for (i = 0; i < DCTBLOCKSIZE; ++i) {
-        tmpVal = (std_QT[i] * Q + 50L) / 100L;
-
+        // Y 亮度量化表
+        tmpVal = (STD_Y_Quantization_Table[i] * quality + 50) / 100;
         if (tmpVal < 1) {
-            tmpVal = 1L;
+            tmpVal = 1;
+        } else if (tmpVal > 0xFF) {
+            tmpVal = 0xFF;
         }
-        if (tmpVal > 255) {
-            tmpVal = 255L;
+        y_QuantizationTable[ZigZagTable[i]] = (BYTE) tmpVal;
+
+        // UV色差量化表
+        tmpVal = (STD_UV_Quantization_Table[i] * quality + 50) / 100;
+        if (tmpVal < 1) {
+            tmpVal = 1;
+        } else if (tmpVal > 0xFF) {
+            tmpVal = 0xFF;
         }
-        QT[FZBT[i]] = (BYTE) tmpVal;
+        uv_QuantizationTable[ZigZagTable[i]] = (BYTE) tmpVal;
     }
 }
 
-void InitQTForAANDCT(JPEGINFO *pJpgInfo) {
-    unsigned int i = 0;
-    unsigned int j = 0;
-    unsigned int k = 0;
+/**
+ * 算法使用了float AAN IDCT算法，DCT离散余弦变换后需要使用Round(Gi,j/Qi,j)<br/>
+ * 来量化，这里预先计算好1/[Q(i,j)*scale(i)*scale(j)]<br/>
+ */
+void initQuantizationTableForAANDCT(JPEGINFO *pJpgInfo) {
+    unsigned int i, j, k = 0;
+    double aanScaleFactor;
 
     for (i = 0; i < DCTSIZE; i++) {
-        for (j = 0; j < DCTSIZE; j++) {
-            pJpgInfo->YQT_DCT[k] = (float) (1.0 / ((double) pJpgInfo->YQT[FZBT[k]] *
-                                                   aanScaleFactor[i] * aanScaleFactor[j] * 8.0));
-            ++k;
-        }
-    }
+        for (j = 0; j < DCTSIZE; ++j, ++k) {
 
-    k = 0;
-    for (i = 0; i < DCTSIZE; i++) {
-        for (j = 0; j < DCTSIZE; j++) {
-            pJpgInfo->UVQT_DCT[k] = (float) (1.0 / ((double) pJpgInfo->UVQT[FZBT[k]] *
-                                                    aanScaleFactor[i] * aanScaleFactor[j] * 8.0));
-            ++k;
+            aanScaleFactor = AANScaleFactor[i] * AANScaleFactor[j] * 8.0;
+            pJpgInfo->YQT_DCT[k] = (float) (1.0 / (pJpgInfo->YQT[ZigZagTable[k]] * aanScaleFactor));
+            pJpgInfo->UVQT_DCT[k] = (float) (1.0 /
+                                             (pJpgInfo->UVQT[ZigZagTable[k]] * aanScaleFactor));
+
         }
     }
 }
 
+/**
+ * 返回2048以内的数字的二进制长度
+ */
 BYTE ComputeVLI(short val) {
     BYTE binStrLen = 0;
     if (val < 0) val = -val;
 
-    if (val == 0) {
-        binStrLen = 0;
-    } else if (val == 1) {
+    if (val <= 1) {
         binStrLen = 1;
     } else if (val <= 3) {
         binStrLen = 2;
@@ -113,7 +133,11 @@ BYTE ComputeVLI(short val) {
     return binStrLen;
 }
 
-void BuildVLITable(JPEGINFO *pJpgInfo) {
+/**
+ * 生成VLI表, 为赫夫曼编码做计算准备
+ */
+void buildVLITable(JPEGINFO *pJpgInfo) {
+
     short i = 0;
 
     for (i = 0; i < DC_MAX_QUANTED; ++i) {
@@ -282,11 +306,6 @@ int writeSOF(BYTE *pOut, int nDataLen, int width, int height) {
 }
 
 
-int WriteByte(BYTE val, BYTE *pOut, int nDataLen) {
-    pOut[nDataLen] = val;
-    return nDataLen + 1;
-}
-
 int WriteDHT(BYTE *pOut, int nDataLen) {
     unsigned int i = 0;
 
@@ -368,6 +387,10 @@ int WriteSOS(BYTE *pOut, int nDataLen) {
     return nDataLen + sizeof(SOS);
 }
 
+int WriteByte(BYTE val, BYTE *pOut, int nDataLen) {
+    pOut[nDataLen] = val;
+    return nDataLen + 1;
+}
 
 void BuildSTDHuffTab(BYTE *nrcodes, BYTE *stdTab, HUFFCODE *huffCode) {
     BYTE i = 0;
@@ -387,104 +410,6 @@ void BuildSTDHuffTab(BYTE *nrcodes, BYTE *stdTab, HUFFCODE *huffCode) {
 
     for (i = 0; i < k; i++) {
         huffCode[i].val = stdTab[i];
-    }
-}
-
-void FDCT(float *lpBuff) {
-    float tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7;
-    float tmp10, tmp11, tmp12, tmp13;
-    float z1, z2, z3, z4, z5, z11, z13;
-    float *dataptr;
-    int ctr;
-
-
-    dataptr = lpBuff;
-    for (ctr = DCTSIZE - 1; ctr >= 0; ctr--) {
-        tmp0 = dataptr[0] + dataptr[7];
-        tmp7 = dataptr[0] - dataptr[7];
-        tmp1 = dataptr[1] + dataptr[6];
-        tmp6 = dataptr[1] - dataptr[6];
-        tmp2 = dataptr[2] + dataptr[5];
-        tmp5 = dataptr[2] - dataptr[5];
-        tmp3 = dataptr[3] + dataptr[4];
-        tmp4 = dataptr[3] - dataptr[4];
-
-
-        tmp10 = tmp0 + tmp3;
-        tmp13 = tmp0 - tmp3;
-        tmp11 = tmp1 + tmp2;
-        tmp12 = tmp1 - tmp2;
-
-        dataptr[0] = tmp10 + tmp11; /* phase 3 */
-        dataptr[4] = tmp10 - tmp11;
-
-        z1 = (float) ((tmp12 + tmp13) * (0.707106781)); /* c4 */
-        dataptr[2] = tmp13 + z1; /* phase 5 */
-        dataptr[6] = tmp13 - z1;
-
-
-        tmp10 = tmp4 + tmp5; /* phase 2 */
-        tmp11 = tmp5 + tmp6;
-        tmp12 = tmp6 + tmp7;
-
-        z5 = (float) ((tmp10 - tmp12) * (0.382683433)); /* c6 */
-        z2 = (float) ((0.541196100) * tmp10 + z5); /* c2-c6 */
-        z4 = (float) ((1.306562965) * tmp12 + z5); /* c2+c6 */
-        z3 = (float) (tmp11 * (0.707106781)); /* c4 */
-
-        z11 = tmp7 + z3;
-        z13 = tmp7 - z3;
-
-        dataptr[5] = z13 + z2; /* phase 6 */
-        dataptr[3] = z13 - z2;
-        dataptr[1] = z11 + z4;
-        dataptr[7] = z11 - z4;
-
-        dataptr += DCTSIZE;
-    }
-
-    dataptr = lpBuff;
-    for (ctr = DCTSIZE - 1; ctr >= 0; ctr--) {
-        tmp0 = dataptr[DCTSIZE * 0] + dataptr[DCTSIZE * 7];
-        tmp7 = dataptr[DCTSIZE * 0] - dataptr[DCTSIZE * 7];
-        tmp1 = dataptr[DCTSIZE * 1] + dataptr[DCTSIZE * 6];
-        tmp6 = dataptr[DCTSIZE * 1] - dataptr[DCTSIZE * 6];
-        tmp2 = dataptr[DCTSIZE * 2] + dataptr[DCTSIZE * 5];
-        tmp5 = dataptr[DCTSIZE * 2] - dataptr[DCTSIZE * 5];
-        tmp3 = dataptr[DCTSIZE * 3] + dataptr[DCTSIZE * 4];
-        tmp4 = dataptr[DCTSIZE * 3] - dataptr[DCTSIZE * 4];
-
-
-        tmp10 = tmp0 + tmp3;
-        tmp13 = tmp0 - tmp3;
-        tmp11 = tmp1 + tmp2;
-        tmp12 = tmp1 - tmp2;
-
-        dataptr[DCTSIZE * 0] = tmp10 + tmp11; /* phase 3 */
-        dataptr[DCTSIZE * 4] = tmp10 - tmp11;
-
-        z1 = (float) ((tmp12 + tmp13) * (0.707106781)); /* c4 */
-        dataptr[DCTSIZE * 2] = tmp13 + z1; /* phase 5 */
-        dataptr[DCTSIZE * 6] = tmp13 - z1;
-
-        tmp10 = tmp4 + tmp5; /* phase 2 */
-        tmp11 = tmp5 + tmp6;
-        tmp12 = tmp6 + tmp7;
-
-        z5 = (float) ((tmp10 - tmp12) * (0.382683433)); /* c6 */
-        z2 = (float) ((0.541196100) * tmp10 + z5); /* c2-c6 */
-        z4 = (float) ((1.306562965) * tmp12 + z5); /* c2+c6 */
-        z3 = (float) (tmp11 * (0.707106781)); /* c4 */
-
-        z11 = tmp7 + z3;  /* phase 5 */
-        z13 = tmp7 - z3;
-
-        dataptr[DCTSIZE * 5] = z13 + z2; /* phase 6 */
-        dataptr[DCTSIZE * 3] = z13 - z2;
-        dataptr[DCTSIZE * 1] = z11 + z4;
-        dataptr[DCTSIZE * 7] = z11 - z4;
-
-        ++dataptr;
     }
 }
 
@@ -580,6 +505,109 @@ void RLEComp(short *lpbuf, ACSYM *lpOutBuf, BYTE *resultLen) {
     }
 }
 
+/**
+ * 快速离散余弦变换
+ * http://www.docin.com/p-346223864.html<br/>
+ * http://wenku.baidu.com/view/f641852a915f804d2b16c183.html<br/>
+ * http://blog.csdn.net/sshcx/article/details/1674224
+ */
+void FastDCT(float *lpBuff) {
+    float tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7;
+    float tmp10, tmp11, tmp12, tmp13;
+    float z1, z2, z3, z4, z5, z11, z13;
+    float *dataPtr;
+    int ctr;
+
+
+    dataPtr = lpBuff;
+    for (ctr = DCTSIZE - 1; ctr >= 0; ctr--) {
+        tmp0 = dataPtr[0] + dataPtr[7];
+        tmp7 = dataPtr[0] - dataPtr[7];
+        tmp1 = dataPtr[1] + dataPtr[6];
+        tmp6 = dataPtr[1] - dataPtr[6];
+        tmp2 = dataPtr[2] + dataPtr[5];
+        tmp5 = dataPtr[2] - dataPtr[5];
+        tmp3 = dataPtr[3] + dataPtr[4];
+        tmp4 = dataPtr[3] - dataPtr[4];
+
+
+        tmp10 = tmp0 + tmp3;
+        tmp13 = tmp0 - tmp3;
+        tmp11 = tmp1 + tmp2;
+        tmp12 = tmp1 - tmp2;
+
+        dataPtr[0] = tmp10 + tmp11; /* phase 3 */
+        dataPtr[4] = tmp10 - tmp11;
+
+        z1 = (float) ((tmp12 + tmp13) * (0.707106781)); /* c4 */
+        dataPtr[2] = tmp13 + z1; /* phase 5 */
+        dataPtr[6] = tmp13 - z1;
+
+
+        tmp10 = tmp4 + tmp5; /* phase 2 */
+        tmp11 = tmp5 + tmp6;
+        tmp12 = tmp6 + tmp7;
+
+        z5 = (float) ((tmp10 - tmp12) * (0.382683433)); /* c6 */
+        z2 = (float) ((0.541196100) * tmp10 + z5); /* c2-c6 */
+        z4 = (float) ((1.306562965) * tmp12 + z5); /* c2+c6 */
+        z3 = (float) (tmp11 * (0.707106781)); /* c4 */
+
+        z11 = tmp7 + z3;
+        z13 = tmp7 - z3;
+
+        dataPtr[5] = z13 + z2; /* phase 6 */
+        dataPtr[3] = z13 - z2;
+        dataPtr[1] = z11 + z4;
+        dataPtr[7] = z11 - z4;
+
+        dataPtr += DCTSIZE;
+    }
+
+    dataPtr = lpBuff;
+    for (ctr = DCTSIZE - 1; ctr >= 0; ctr--) {
+        tmp0 = dataPtr[DCTSIZE * 0] + dataPtr[DCTSIZE * 7];
+        tmp7 = dataPtr[DCTSIZE * 0] - dataPtr[DCTSIZE * 7];
+        tmp1 = dataPtr[DCTSIZE * 1] + dataPtr[DCTSIZE * 6];
+        tmp6 = dataPtr[DCTSIZE * 1] - dataPtr[DCTSIZE * 6];
+        tmp2 = dataPtr[DCTSIZE * 2] + dataPtr[DCTSIZE * 5];
+        tmp5 = dataPtr[DCTSIZE * 2] - dataPtr[DCTSIZE * 5];
+        tmp3 = dataPtr[DCTSIZE * 3] + dataPtr[DCTSIZE * 4];
+        tmp4 = dataPtr[DCTSIZE * 3] - dataPtr[DCTSIZE * 4];
+
+
+        tmp10 = tmp0 + tmp3;
+        tmp13 = tmp0 - tmp3;
+        tmp11 = tmp1 + tmp2;
+        tmp12 = tmp1 - tmp2;
+
+        dataPtr[DCTSIZE * 0] = tmp10 + tmp11; /* phase 3 */
+        dataPtr[DCTSIZE * 4] = tmp10 - tmp11;
+
+        z1 = (float) ((tmp12 + tmp13) * (0.707106781)); /* c4 */
+        dataPtr[DCTSIZE * 2] = tmp13 + z1; /* phase 5 */
+        dataPtr[DCTSIZE * 6] = tmp13 - z1;
+
+        tmp10 = tmp4 + tmp5; /* phase 2 */
+        tmp11 = tmp5 + tmp6;
+        tmp12 = tmp6 + tmp7;
+
+        z5 = (float) ((tmp10 - tmp12) * (0.382683433)); /* c6 */
+        z2 = (float) ((0.541196100) * tmp10 + z5); /* c2-c6 */
+        z4 = (float) ((1.306562965) * tmp12 + z5); /* c2+c6 */
+        z3 = (float) (tmp11 * (0.707106781)); /* c4 */
+
+        z11 = tmp7 + z3;  /* phase 5 */
+        z13 = tmp7 - z3;
+
+        dataPtr[DCTSIZE * 5] = z13 + z2; /* phase 6 */
+        dataPtr[DCTSIZE * 3] = z13 - z2;
+        dataPtr[DCTSIZE * 1] = z11 + z4;
+        dataPtr[DCTSIZE * 7] = z11 - z4;
+
+        ++dataPtr;
+    }
+}
 
 int ProcessDU(JPEGINFO *pJpgInfo, float *lpBuf, float *quantTab, HUFFCODE *dcHuffTab,
               HUFFCODE *acHuffTab, short *DC, BYTE *pOut, int nDataLen) {
@@ -590,10 +618,10 @@ int ProcessDU(JPEGINFO *pJpgInfo, float *lpBuf, float *quantTab, HUFFCODE *dcHuf
     short sigBuf[DCTBLOCKSIZE];
     ACSYM acSym[DCTBLOCKSIZE];
 
-    FDCT(lpBuf);
+    FastDCT(lpBuf);
 
     for (i = 0; i < DCTBLOCKSIZE; i++) {
-        sigBuf[FZBT[i]] = (short) ((lpBuf[i] * quantTab[i] + 16384.5) - 16384);
+        sigBuf[ZigZagTable[i]] = (short) ((lpBuf[i] * quantTab[i] + 16384.5) - 16384);
     }
 
     diffVal = sigBuf[0] - *DC;
@@ -709,7 +737,10 @@ int ProcessData(JPEGINFO *pJpgInfo, BYTE *lpYBuf, BYTE *lpUBuf, BYTE *lpVBuf, in
     return nDataLen;
 }
 
-int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int quality, int nStride,
+/**
+ * http://blog.chinaunix.net/uid-23065002-id-3999981.html
+ */
+int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int nStride, int quality,
             BYTE *pOut, unsigned long *pnOutSize) {
 
     //LOGI("start");
@@ -732,14 +763,13 @@ int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int quali
     //LOGI("finish 分块\n");
 
     // 根据输入的压缩系数重新计算量化表
-    quality = QualityScaling(quality);
-    SetQuantTable(std_Y_QT, JpgInfo.YQT, quality);
-    SetQuantTable(std_UV_QT, JpgInfo.UVQT, quality);
+    quality = qualityScaling(quality);
+    scaleSTDQuantizationTable(JpgInfo.YQT, JpgInfo.UVQT, quality);
 
     //LOGI("quality table");
-    InitQTForAANDCT(&JpgInfo);
+    initQuantizationTableForAANDCT(&JpgInfo);
     JpgInfo.pVLITAB = JpgInfo.VLI_TAB + 2048;
-    BuildVLITable(&JpgInfo);
+    buildVLITable(&JpgInfo);
 
     //LOGI("build vli table");
     nDataLen = 0;

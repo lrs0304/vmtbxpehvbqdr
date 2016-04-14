@@ -55,7 +55,10 @@ typedef struct _JPEGINFO {
 static unsigned short SOITAG = 0xD8FF;
 static unsigned short EOITAG = 0xD9FF;
 
-static BYTE FZBT[64] = {
+/**
+ * 正向 8x8 Z变换表
+ */
+static BYTE ZigZagTable[64] = {
         0, 1, 5, 6, 14, 15, 27, 28,
         2, 4, 7, 13, 16, 26, 29, 42,
         3, 8, 12, 17, 25, 30, 41, 43,
@@ -66,7 +69,11 @@ static BYTE FZBT[64] = {
         35, 36, 48, 49, 57, 58, 62, 63
 };
 
-static BYTE std_Y_QT[64] = {
+/**
+ * 标准亮度信号量化表<br/>
+ * Luminance_Quantization_Table
+ */
+static BYTE STD_Y_Quantization_Table[64] = {
         16, 11, 10, 16, 24, 40, 51, 61,
         12, 12, 14, 19, 26, 58, 60, 55,
         14, 13, 16, 24, 40, 57, 69, 56,
@@ -77,7 +84,11 @@ static BYTE std_Y_QT[64] = {
         72, 92, 95, 98, 112, 100, 103, 99
 };
 
-static BYTE std_UV_QT[64] = {
+/**
+ * 标准色差量化表
+ * Chrominance_Quantization_Table
+ */
+static BYTE STD_UV_Quantization_Table[64] = {
         17, 18, 24, 47, 99, 99, 99, 99,
         18, 21, 26, 66, 99, 99, 99, 99,
         24, 26, 56, 99, 99, 99, 99, 99,
@@ -88,7 +99,7 @@ static BYTE std_UV_QT[64] = {
         99, 99, 99, 99, 99, 99, 99, 99
 };
 
-static double aanScaleFactor[8] = {
+static double AANScaleFactor[8] = {
         1.0, 1.387039845, 1.306562965, 1.175875602,
         1.0, 0.785694958, 0.541196100, 0.275899379
 };
@@ -184,13 +195,10 @@ typedef struct tagJPEGDQT_8BITS {
      ② 精度               1字节     每个数据样本的位数。通常是8位，一般软件都不支持 12位和16位
      ③ 图像高度            2字节     图像高度（单位：像素），如果不支持 DNL 就必须 >0
      ④ 图像宽度            2字节     图像宽度（单位：像素），如果不支持 DNL 就必须 >0
-     ⑤ 颜色分量数          1字节     只有3个数值可选
-                                                 1：灰度图；3：YCrCb或YIQ；4：CMYK
-                                                 而JFIF中使用YCrCb，故这里颜色分量数恒为3
+     ⑤ 颜色分量数          1字节     只有3个数值可选 ：灰度图；3：YCrCb或YIQ；4：CMYK,而JFIF中使用YCrCb，故这里颜色分量数恒为3
      ⑥颜色分量信息      颜色分量数×3字节（通常为9字节）
         a)         颜色分量ID           1字节
-        b)        水平/垂直采样因子      1字节            高4位：水平采样因子
-                                                        低4位：垂直采样因子
+        b)        水平/垂直采样因子      1字节            高4位：水平采样因子 低4位：垂直采样因子
         c)        量化表                1字节            当前分量使用的量化表的ID
 
  *  本标记段中，字段⑥应该重复出现，有多少个颜色分量（字段⑤），就出现多少次（一般为3次）。
@@ -255,15 +263,15 @@ typedef struct tagBMBUFINFO {
     BYTE padSize;
 } BMBUFINFO;
 
-int QualityScaling(int quality);
+int qualityScaling(int quality);
 
 void divBufferInto8x8Matrix(BYTE *pBuf, int width, int height, int nStride);
 
-void SetQuantTable(BYTE *std_QT, BYTE *QT, int Q);
+void scaleSTDQuantizationTable(BYTE *y_QuantizationTable, BYTE *uv_QuantizationTable, int quality);
 
-void InitQTForAANDCT(JPEGINFO *pJpgInfo);
+void initQuantizationTableForAANDCT(JPEGINFO *pJpgInfo);
 
-void BuildVLITable(JPEGINFO *pJpgInfo);
+void buildVLITable(JPEGINFO *pJpgInfo);
 
 int writeSOI(BYTE *pOut, int nDataLen);
 
@@ -279,12 +287,14 @@ int WriteDHT(BYTE *pOut, int nDataLen);
 
 int WriteSOS(BYTE *pOut, int nDataLen);
 
+int WriteByte(BYTE val, BYTE *pOut, int nDataLen);
+
 void BuildSTDHuffTab(BYTE *nrcodes, BYTE *stdTab, HUFFCODE *huffCode);
 
 int ProcessData(JPEGINFO *pJpgInfo, BYTE *lpYBuf, BYTE *lpUBuf, BYTE *lpVBuf, int width, int height,
                 int yBufLen, int uBufLen, int vBufLen, BYTE *pOut, int nDataLen);
 
-int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int quality, int nStride,
+int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int nStride, int quality,
             BYTE *pOut, unsigned long *pnOutSize);
 
 #endif

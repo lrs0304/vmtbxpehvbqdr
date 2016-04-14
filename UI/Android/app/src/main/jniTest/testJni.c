@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
     get_Y_U_V(rData, in_Y, in_U, in_V, width, height);
 
     LOGI("convert\n");
-    YUV2Jpg(in_Y, in_U, in_V, width, height, 75, width, pData, &dwSize);
+    YUV2Jpg(in_Y, in_U, in_V, width, height, width, 75, pData, &dwSize);
     FILE *fp = fopen("3-1.jpg", "wb");
     fwrite(pData, dwSize, 1, fp);
     fclose(fp);

@@ -46,7 +46,7 @@ jlong Java_com_legaocar_rison_android_util_NativeUtil_compressYuvToJpeg
 
     //LOGI("get yuv channel");
     getYUVChannelOfNV21((BYTE *) yuv, mChannelY, mChannelU, mChannelV, width, height);
-    YUV2Jpg(mChannelY, mChannelU, mChannelV, width, height, quality, width, (BYTE *) jpg, &dwSize);
+    YUV2Jpg(mChannelY, mChannelU, mChannelV, width, height, width, quality, (BYTE *) jpg, &dwSize);
 
     /**
      * 调用了Get就必须调用Release
