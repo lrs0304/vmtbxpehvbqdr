@@ -257,7 +257,7 @@ typedef struct tagBMBUFINFO {
 
 int QualityScaling(int quality);
 
-void divBufferInto8x8Matrix(BYTE *pBuf, int width, int height, int nStride, int xLen, int yLen);
+void divBufferInto8x8Matrix(BYTE *pBuf, int width, int height, int nStride);
 
 void SetQuantTable(BYTE *std_QT, BYTE *QT, int Q);
 

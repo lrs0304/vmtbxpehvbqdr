@@ -1,5 +1,34 @@
 #include "yuv2jpg.h"
 
+/**
+ * 将width*height的一维数组重新组装成以8*8小矩阵为大矩阵的一维数组
+ */
+void divBufferInto8x8Matrix(BYTE *pBuf, int width, int height, int nStride) {
+    size_t stepLen = DCTSIZE;
+    int stepBits = 3;                  //8占3字节
+    int xBufs = width >> stepBits;     // width / xLen
+    int yBufs = height >> stepBits;    // height / yLen;
+    size_t tmpBufLen = (size_t) width << stepBits; //xBufs * xLen * yLen
+    BYTE *tmpBuf = (BYTE *) malloc(tmpBufLen);
+
+    int hIndex, wIndex;
+    int k;
+    int tmpBufOffset, bufOffset = 0;
+    for (hIndex = 0; hIndex < yBufs; ++hIndex) {                          // 第hIndex行
+        for (tmpBufOffset = 0, wIndex = 0; wIndex < xBufs; ++wIndex) {    // 第wIndex列
+            //bufOffset = (yLen * hIndex) * nStride + wIndex * xLen;
+            bufOffset = (hIndex * nStride + wIndex) << stepBits;          // 数据拷贝的左上角的起始地址
+            for (k = 0; k < stepLen; ++k) {                               // 待拷贝矩阵的第k行
+                memcpy(tmpBuf + tmpBufOffset, pBuf + bufOffset, stepLen); // 每行拷贝xLen块
+                tmpBufOffset += stepLen;                                  // 临时缓冲区的偏移
+                bufOffset += nStride;
+            }                                                             // 完成一个小分块
+        }
+        memcpy(pBuf + hIndex * tmpBufLen, tmpBuf, tmpBufLen);
+    }
+    free(tmpBuf);
+}
+
 int QualityScaling(int quality) {
     if (quality <= 0) quality = 1;
     if (quality > 100) quality = 100;
@@ -10,36 +39,6 @@ int QualityScaling(int quality) {
         quality = 200 - (quality << 1);
 
     return quality;
-}
-
-/**
- * 将width*height的一维数组重新组装成以xLen*yLen小矩阵为大矩阵的一维数组
- * @param xLen x 向量的步长
- * @param yLen y 向量的步长
- */
-void divBufferInto8x8Matrix(BYTE *pBuf, int width, int height, int nStride, int xLen, int yLen) {
-    int xBufs = width / xLen;
-    int yBufs = height / yLen;
-    int tmpBufLen = xBufs * xLen * yLen;
-    BYTE *tmpBuf = (BYTE *) malloc(tmpBufLen);
-    int i;
-    int j;
-    int k;
-    int n;
-    int bufOffset = 0;
-    for (i = 0; i < yBufs; ++i) {
-        n = 0;
-        for (j = 0; j < xBufs; ++j) {
-            bufOffset = yLen * i * nStride + j * xLen;
-            for (k = 0; k < yLen; ++k) {
-                memcpy(tmpBuf + n, pBuf + bufOffset, xLen);
-                n += xLen;
-                bufOffset += nStride;
-            }
-        }
-        memcpy(pBuf + i * tmpBufLen, tmpBuf, tmpBufLen);
-    }
-    free(tmpBuf);
 }
 
 void SetQuantTable(BYTE *std_QT, BYTE *QT, int Q) {
@@ -727,10 +726,10 @@ int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int quali
     JpgInfo.bytePos = 7;
 
     // 数据分块
-    divBufferInto8x8Matrix(pYBuf, width, height, nStride, DCTSIZE, DCTSIZE);
-    divBufferInto8x8Matrix(pUBuf, width, height, nStride, DCTSIZE, DCTSIZE);
-    divBufferInto8x8Matrix(pVBuf, width, height, nStride, DCTSIZE, DCTSIZE);
-    LOGI("finish 分块\n");
+    divBufferInto8x8Matrix(pYBuf, width, height, nStride);
+    divBufferInto8x8Matrix(pUBuf, width, height, nStride);
+    divBufferInto8x8Matrix(pVBuf, width, height, nStride);
+    //LOGI("finish 分块\n");
 
     // 根据输入的压缩系数重新计算量化表
     quality = QualityScaling(quality);
@@ -744,7 +743,6 @@ int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int quali
 
     //LOGI("build vli table");
     nDataLen = 0;
-
     nDataLen = writeSOI(pOut, nDataLen);
     nDataLen = writeAPP0(pOut, nDataLen);
     nDataLen = writeDQT(&JpgInfo, pOut, nDataLen);
