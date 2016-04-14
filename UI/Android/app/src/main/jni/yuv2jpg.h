@@ -15,7 +15,7 @@
 
 typedef uint8_t BYTE;
 #define  MY_TAG    "Legao Server Native"
-#define _ANDROID__
+//#define _ANDROID__
 
 #ifdef _ANDROID__
 
@@ -34,7 +34,7 @@ typedef struct tagHUFFCODE {
     unsigned short val;
 } HUFFCODE;
 
-typedef struct tagJPEGINFO {
+typedef struct _JPEGINFO {
     float YQT_DCT[DCTBLOCKSIZE];
     float UVQT_DCT[DCTBLOCKSIZE];
     BYTE YQT[DCTBLOCKSIZE];
@@ -46,9 +46,12 @@ typedef struct tagJPEGINFO {
     HUFFCODE STD_AC_Y_HT[256];
     HUFFCODE STD_AC_UV_HT[256];
     BYTE bytenew;
-    signed char bytepos;
+    signed char bytePos;
 } JPEGINFO;
 
+/**
+ * JPEG 头尾标记，头部固定为0xFFD8，尾部固定为0xFFD9
+ */
 static unsigned short SOITAG = 0xD8FF;
 static unsigned short EOITAG = 0xD9FF;
 
@@ -173,6 +176,25 @@ typedef struct tagJPEGDQT_8BITS {
     BYTE table[64];
 } JPEGDQT_8BITS;
 
+/**
+ * SOF0，Start of Frame，帧图像开始
+ * + 标记代码                   2字节     固定值0xFFC0
+ * + 包含9个具体字段：
+     ① 数据长度            2字节     ①~⑥六个字段的总长度。即不包括标记代码，但包括本字段
+     ② 精度               1字节     每个数据样本的位数。通常是8位，一般软件都不支持 12位和16位
+     ③ 图像高度            2字节     图像高度（单位：像素），如果不支持 DNL 就必须 >0
+     ④ 图像宽度            2字节     图像宽度（单位：像素），如果不支持 DNL 就必须 >0
+     ⑤ 颜色分量数          1字节     只有3个数值可选
+                                                 1：灰度图；3：YCrCb或YIQ；4：CMYK
+                                                 而JFIF中使用YCrCb，故这里颜色分量数恒为3
+     ⑥颜色分量信息      颜色分量数×3字节（通常为9字节）
+        a)         颜色分量ID           1字节
+        b)        水平/垂直采样因子      1字节            高4位：水平采样因子
+                                                        低4位：垂直采样因子
+        c)        量化表                1字节            当前分量使用的量化表的ID
+
+ *  本标记段中，字段⑥应该重复出现，有多少个颜色分量（字段⑤），就出现多少次（一般为3次）。
+ */
 typedef struct tagJPEGSOF0_24BITS {
     unsigned short segmentTag;
     unsigned short length;
@@ -243,15 +265,15 @@ void InitQTForAANDCT(JPEGINFO *pJpgInfo);
 
 void BuildVLITable(JPEGINFO *pJpgInfo);
 
-int WriteSOI(BYTE *pOut, int nDataLen);
+int writeSOI(BYTE *pOut, int nDataLen);
 
-int WriteEOI(BYTE *pOut, int nDataLen);
+int writeEOI(BYTE *pOut, int nDataLen);
 
-int WriteAPP0(BYTE *pOut, int nDataLen);
+int writeAPP0(BYTE *pOut, int nDataLen);
 
-int WriteDQT(JPEGINFO *pJpgInfo, BYTE *pOut, int nDataLen);
+int writeDQT(JPEGINFO *pJpgInfo, BYTE *pOut, int nDataLen);
 
-int WriteSOF(BYTE *pOut, int nDataLen, int width, int height);
+int writeSOF(BYTE *pOut, int nDataLen, int width, int height);
 
 int WriteDHT(BYTE *pOut, int nDataLen);
 

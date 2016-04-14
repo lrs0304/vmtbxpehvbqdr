@@ -126,19 +126,40 @@ void BuildVLITable(JPEGINFO *pJpgInfo) {
     }
 }
 
-int WriteSOI(BYTE *pOut, int nDataLen) {
+/**
+ * start of image. 图像的开始，固定为0xFFD8
+ */
+int writeSOI(BYTE *pOut, int nDataLen) {
     memcpy(pOut + nDataLen, &SOITAG, sizeof(SOITAG));
     return nDataLen + sizeof(SOITAG);
 }
 
-
-int WriteEOI(BYTE *pOut, int nDataLen) {
+/**
+ * end of image. 图像的结束，固定为0xFFD9
+ */
+int writeEOI(BYTE *pOut, int nDataLen) {
     memcpy(pOut + nDataLen, &EOITAG, sizeof(EOITAG));
     return nDataLen + sizeof(EOITAG);
 }
 
+/**
+ * APP0，Application，应用程序保留标记0
+ * +  标记代码                 2字节     固定值0xFFE0
+ * +  包含9个具体字段：
+      ① 数据长度              2字节     ①~⑨9个字段的总长度。即不包括标记代码，但包括本字段
+      ② 标识符                5字节    固定值0x4A46494600，即字符串“JFIF0”
+      ③ 版本号                2字节    一般是0x0102，表示JFIF的版本号1.2。可能会有其他数值代表其他版本
+      ④ X和Y的密度单位        1字节     只有三个值可选。0：无单位；1：点数/英寸；2：点数/厘米
+      ⑤ X方向像素密度         2字节
+      ⑥ Y方向像素密度         2字节
+      ⑦ 缩略图水平像素数目    1字节
+      ⑧ 缩略图垂直像素数目    1字节
+      ⑨ 缩略图RGB位图         长度可能是3的倍数           缩略图RGB位图数据
 
-int WriteAPP0(BYTE *pOut, int nDataLen) {
+ * 本标记段可以包含图像的一个微缩版本，存为24位的RGB像素。如果没有微缩图像（这种情况更常见），
+ * 则字段⑦“缩略图水平像素数目”和字段⑧“缩略图垂直像素数目”的值均为0。
+ */
+int writeAPP0(BYTE *pOut, int nDataLen) {
     JPEGAPP0 APP0;
     APP0.segmentTag = 0xE0FF;
     APP0.length = 0x1000;
@@ -151,9 +172,9 @@ int WriteAPP0(BYTE *pOut, int nDataLen) {
     APP0.densityUnit = 0x00;
     APP0.densityX = 0x0100;
     APP0.densityY = 0x0100;
-    APP0.thp = 0x00;
+    APP0.thp = 0x00;//表示没有缩略图
     APP0.tvp = 0x00;
-    //memcpy(pOut+nDataLen,&APP0,sizeof(APP0));
+
     memcpy(pOut + nDataLen, &APP0.segmentTag, 2);
     memcpy(pOut + nDataLen + 2, &APP0.length, 2);
     memcpy(pOut + nDataLen + 4, APP0.id, 5);
@@ -168,34 +189,46 @@ int WriteAPP0(BYTE *pOut, int nDataLen) {
 
 }
 
+/**
+ *  DQT，Define Quantization Table，定义量化表
+ * + 标记代码                2字节            固定值0xFFDB
+ * + 包含9个具体字段：
+   ① 数据长度               2字节            字段①和多个字段②的总长度。即不包括标记代码，但包括本字段
+   ② 量化表                 2字节
+         a) 精度及量化表ID   1字节            高4位：精度，只有两个可选值。0：8位；1：16位
+                                            低4位：量化表ID，取值范围为0～3
+         b) 表项       (64×(精度+1))字节     如8位精度的量化表。其表项长度为64×（0+1）=64字节
+本标记段中，字段②可以重复出现，表示多个量化表，但最多只能出现4次。
+ */
+int writeDQT(JPEGINFO *pJpgInfo, BYTE *pOut, int nDataLen) {
 
-int WriteDQT(JPEGINFO *pJpgInfo, BYTE *pOut, int nDataLen) {
+    //unsigned int i = 0;
+    JPEGDQT_8BITS dQT;
+    dQT.segmentTag = 0xDBFF;//编码格式的原因
+    dQT.length = 0x4300;
 
-    unsigned int i = 0;
-    JPEGDQT_8BITS DQT_Y;
-    DQT_Y.segmentTag = 0xDBFF;
-    DQT_Y.length = 0x4300;
-    DQT_Y.tableInfo = 0x00;
-    for (i = 0; i < DCTBLOCKSIZE; i++) {
-        DQT_Y.table[i] = pJpgInfo->YQT[i];
-    }
-    //memcpy(pOut+nDataLen , &DQT_Y,sizeof(DQT_Y));
-    memcpy(pOut + nDataLen, &DQT_Y.segmentTag, 2);
-    memcpy(pOut + nDataLen + 2, &DQT_Y.length, 2);
-    *(pOut + nDataLen + 4) = DQT_Y.tableInfo;
-    memcpy(pOut + nDataLen + 5, DQT_Y.table, 64);
+    //Y
+    dQT.tableInfo = 0x00;   //0表示使用8*8的量化表
+    /**for (i = 0; i < DCTBLOCKSIZE; i++) {
+        dQT.table[i] = pJpgInfo->YQT[i];
+    }*/
+    memcpy(pOut + nDataLen, &dQT.segmentTag, 2);
+    memcpy(pOut + nDataLen + 2, &dQT.length, 2);
+    *(pOut + nDataLen + 4) = dQT.tableInfo;
+    memcpy(pOut + nDataLen + 5, /**dQT.table*/pJpgInfo->YQT, 64);
 
-    nDataLen += sizeof(DQT_Y) - 1;
-    DQT_Y.tableInfo = 0x01;
-    for (i = 0; i < DCTBLOCKSIZE; i++) {
-        DQT_Y.table[i] = pJpgInfo->UVQT[i];
-    }
-    //memcpy(pOut+nDataLen,&DQT_Y,sizeof(DQT_Y));
-    memcpy(pOut + nDataLen, &DQT_Y.segmentTag, 2);
-    memcpy(pOut + nDataLen + 2, &DQT_Y.length, 2);
-    *(pOut + nDataLen + 4) = DQT_Y.tableInfo;
-    memcpy(pOut + nDataLen + 5, DQT_Y.table, 64);
-    nDataLen += sizeof(DQT_Y) - 1;
+    //UV
+    nDataLen += sizeof(dQT) - 1;
+    dQT.tableInfo = 0x01;
+    /**for (i = 0; i < DCTBLOCKSIZE; i++) {
+        dQT.table[i] = pJpgInfo->UVQT[i];
+    }*/
+    memcpy(pOut + nDataLen, &dQT.segmentTag, 2);
+    memcpy(pOut + nDataLen + 2, &dQT.length, 2);
+    *(pOut + nDataLen + 4) = dQT.tableInfo;
+    memcpy(pOut + nDataLen + 5, /*dQT.table*/pJpgInfo->UVQT, 64);
+
+    nDataLen += sizeof(dQT) - 1;
     return nDataLen;
 }
 
@@ -210,18 +243,20 @@ unsigned short convertByteFromIntelToMotorola(unsigned short val) {
     return lowBits << 8 | highBits;
 }
 
-
-int WriteSOF(BYTE *pOut, int nDataLen, int width, int height) {
+/**
+ * Start of Frame，帧图像开始
+ */
+int writeSOF(BYTE *pOut, int nDataLen, int width, int height) {
     JPEGSOF0_24BITS SOF;
-    SOF.segmentTag = 0xC0FF;
-    SOF.length = 0x1100;
-    SOF.precision = 0x08;
+    SOF.segmentTag = 0xC0FF;//实际为0xFFC0
+    SOF.length = 0x1100;    //数据长度
+    SOF.precision = 0x08;   //精度,一像素占多少字节
     SOF.height = convertByteFromIntelToMotorola((unsigned short) height);
     SOF.width = convertByteFromIntelToMotorola((unsigned short) width);
-    SOF.sigNum = 0x03;
-    SOF.YID = 0x01;
-    SOF.HVY = 0x11;
-    SOF.QTY = 0x00;
+    SOF.sigNum = 0x03;      //颜色分量数,1：灰度图；3：YCrCb或YIQ；4：CMYK
+    SOF.YID = 0x01;         //Y,U,V,分量信息，分别为1,2,3
+    SOF.HVY = 0x11;         //水平/垂直采样因子，高位水平，低位垂直
+    SOF.QTY = 0x00;         //量化表的id
     SOF.UID = 0x02;
     SOF.HVU = 0x11;
     SOF.QTU = 0x01;
@@ -461,12 +496,12 @@ int WriteBitsStream(JPEGINFO *pJpgInfo, unsigned short value, BYTE codeLen, BYTE
     posval = codeLen - 1;
     while (posval >= 0) {
         if (value & mask[posval]) {
-            pJpgInfo->bytenew |= mask[pJpgInfo->bytepos];
+            pJpgInfo->bytenew |= mask[pJpgInfo->bytePos];
         }
         posval--;
-        pJpgInfo->bytepos--;
+        pJpgInfo->bytePos--;
 
-        if (pJpgInfo->bytepos < 0) {
+        if (pJpgInfo->bytePos < 0) {
             if (pJpgInfo->bytenew == 0xFF) {
                 nDataLen = WriteByte(0xFF, pOut, nDataLen);
                 nDataLen = WriteByte(0, pOut, nDataLen);
@@ -474,7 +509,7 @@ int WriteBitsStream(JPEGINFO *pJpgInfo, unsigned short value, BYTE codeLen, BYTE
             else {
                 nDataLen = WriteByte(pJpgInfo->bytenew, pOut, nDataLen);
             }
-            pJpgInfo->bytepos = 7;
+            pJpgInfo->bytePos = 7;
             pJpgInfo->bytenew = 0;
         }
     }
@@ -688,16 +723,16 @@ int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int quali
     int nDataLen;
     JPEGINFO JpgInfo;
     memset(&JpgInfo, 0, sizeof(JPEGINFO));
-    //printf("sizeof(JPEGINFO)=%d\n",sizeof(JPEGINFO));
     JpgInfo.bytenew = 0;
-    JpgInfo.bytepos = 7;
+    JpgInfo.bytePos = 7;
 
-
+    // 数据分块
     divBufferInto8x8Matrix(pYBuf, width, height, nStride, DCTSIZE, DCTSIZE);
     divBufferInto8x8Matrix(pUBuf, width, height, nStride, DCTSIZE, DCTSIZE);
     divBufferInto8x8Matrix(pVBuf, width, height, nStride, DCTSIZE, DCTSIZE);
-
     LOGI("finish 分块\n");
+
+    // 根据输入的压缩系数重新计算量化表
     quality = QualityScaling(quality);
     SetQuantTable(std_Y_QT, JpgInfo.YQT, quality);
     SetQuantTable(std_UV_QT, JpgInfo.UVQT, quality);
@@ -710,10 +745,10 @@ int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int quali
     //LOGI("build vli table");
     nDataLen = 0;
 
-    nDataLen = WriteSOI(pOut, nDataLen);
-    nDataLen = WriteAPP0(pOut, nDataLen);
-    nDataLen = WriteDQT(&JpgInfo, pOut, nDataLen);
-    nDataLen = WriteSOF(pOut, nDataLen, width, height);
+    nDataLen = writeSOI(pOut, nDataLen);
+    nDataLen = writeAPP0(pOut, nDataLen);
+    nDataLen = writeDQT(&JpgInfo, pOut, nDataLen);
+    nDataLen = writeSOF(pOut, nDataLen, width, height);
     nDataLen = WriteDHT(pOut, nDataLen);
     nDataLen = WriteSOS(pOut, nDataLen);
 
@@ -728,12 +763,9 @@ int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int quali
                            nDataLen);
 
     //LOGI("finish process yuv");
-    nDataLen = WriteEOI(pOut, nDataLen);
+    nDataLen = writeEOI(pOut, nDataLen);
 
     //LOGI("write eoi");
-//    free(pYBuf);
-//    free(pUBuf);
-//    free(pVBuf);
     *pnOutSize = nDataLen;
 
     return 0;
