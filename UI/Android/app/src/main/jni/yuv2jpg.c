@@ -106,7 +106,9 @@ BYTE computeVLI(short val) {
     BYTE binStrLen = 0;
     if (val < 0) val = -val;
 
-    if (val <= 1) {
+    if (val == 0) {
+        binStrLen = 0;
+    } else if (val == 1) {
         binStrLen = 1;
     } else if (val <= 3) {
         binStrLen = 2;
@@ -393,7 +395,7 @@ int writeSOS(BYTE *pOut, int nDataLen) {
 /**
  * 生成标准Huffman表
  */
-void BuildSTDHuffTab(BYTE *nrCodes, BYTE *stdTab, HUFFCODE *huffCode) {
+void buildSTDHuffTab(BYTE *nrCodes, BYTE *stdTab, HUFFCODE *huffCode) {
     BYTE i;
     BYTE j;
     BYTE k = 0;
@@ -406,7 +408,7 @@ void BuildSTDHuffTab(BYTE *nrCodes, BYTE *stdTab, HUFFCODE *huffCode) {
             ++k;
             ++code;
         }
-        code = code << 1;//code *= 2;
+        code <<= 1;//code *= 2;
     }
 
     for (i = 0; i < k; i++) {
@@ -454,7 +456,7 @@ int writeBitsHuffmanCode(JPEGINFO *pJpgInfo, HUFFCODE huffCode, BYTE *pOut, int 
  * AC/DC信号的振幅
  */
 int writeBitsAmplitude(JPEGINFO *pJpgInfo, SYM2 sym, BYTE *pOut, int nDataLen) {
-    return writeBitsStream(pJpgInfo, sym.amplitude, sym.codeLen, pOut, nDataLen);
+    return writeBitsStream(pJpgInfo, (unsigned short) sym.amplitude, sym.codeLen, pOut, nDataLen);
 }
 
 /**
@@ -465,28 +467,30 @@ int writeByte(BYTE val, BYTE *pOut, int nDataLen) {
     return nDataLen + 1;
 }
 
-double mypow(double x, double y) {
-    int i = 0;
-    double sum = 1;
-    for (i = 1; i <= (int) y; i++)
-        sum *= x;
-    return sum;
+/**
+ * 快速求幂
+ */
+double quickPower(double a, int n) {
+    if (n == 0) {
+        return 1;
+    }
+
+    double half = quickPower(a, n >> 1);
+    return half * half * ((n & 1) == 1 ? a : 1);
 }
 
-SYM2 BuildSym2(short value) {
-    SYM2 Symbol;
+/**
+ * 将信号的振幅VLI编码,返回编码长度和信号振幅的反码
+ */
+SYM2 buildSym2(short value) {
+    SYM2 symbol;
 
-    Symbol.codeLen = computeVLI(value);
-    Symbol.amplitude = 0;
-    if (value >= 0) {
-        Symbol.amplitude = value;
-    }
-    else {
-        double tmp = mypow(2, Symbol.codeLen);
-        Symbol.amplitude = (short) (tmp - 1) + value;
-    }
+    // 获取编码长度
+    symbol.codeLen = computeVLI(value);
+    // 计算反码 //quickPower(2, Symbol.codeLen); = 1<< symbol.codeLen
+    symbol.amplitude = value >= 0 ? value : (short) ((1 << symbol.codeLen) + value - 1);
 
-    return Symbol;
+    return symbol;
 }
 
 
@@ -650,7 +654,7 @@ int ProcessDU(JPEGINFO *pJpgInfo, float *lpBuf, float *quantTab, HUFFCODE *dcHuf
     else {
         nDataLen = writeBitsHuffmanCode(pJpgInfo, dcHuffTab[pJpgInfo->pVLITAB[diffVal]], pOut,
                                         nDataLen);
-        nDataLen = writeBitsAmplitude(pJpgInfo, BuildSym2(diffVal), pOut, nDataLen);
+        nDataLen = writeBitsAmplitude(pJpgInfo, buildSym2(diffVal), pOut, nDataLen);
     }
 
     for (i = 63; (i > 0) && (sigBuf[i] == 0); i--) {
@@ -670,7 +674,7 @@ int ProcessDU(JPEGINFO *pJpgInfo, float *lpBuf, float *quantTab, HUFFCODE *dcHuf
                 nDataLen = writeBitsHuffmanCode(pJpgInfo,
                                                 acHuffTab[acSym[j].zeroLen * 16 + acSym[j].codeLen],
                                                 pOut, nDataLen);
-                nDataLen = writeBitsAmplitude(pJpgInfo, BuildSym2(acSym[j].amplitude), pOut,
+                nDataLen = writeBitsAmplitude(pJpgInfo, buildSym2(acSym[j].amplitude), pOut,
                                               nDataLen);
             }
         }
@@ -682,8 +686,8 @@ int ProcessDU(JPEGINFO *pJpgInfo, float *lpBuf, float *quantTab, HUFFCODE *dcHuf
 }
 
 
-int ProcessData(JPEGINFO *pJpgInfo, BYTE *lpYBuf, BYTE *lpUBuf, BYTE *lpVBuf, int width, int height,
-                int myBufLen, int muBufLen, int mvBufLen, BYTE *pOut, int nDataLen) {
+int ProcessData(JPEGINFO *pJpgInfo, BYTE *lpYBuf, BYTE *lpUBuf, BYTE *lpVBuf,
+                int width, int height, BYTE *pOut, int nDataLen) {
     size_t yBufLen = strlen((const char *) lpYBuf);
     size_t uBufLen = strlen((const char *) lpUBuf);
     size_t vBufLen = strlen((const char *) lpVBuf);
@@ -801,14 +805,13 @@ int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int nStri
     nDataLen = writeSOS(pOut, nDataLen);
 
     //LOGI("finish write");
-    BuildSTDHuffTab(STD_DC_Y_NRCODES, STD_DC_Y_VALUES, JpgInfo.STD_DC_Y_HT);
-    BuildSTDHuffTab(STD_AC_Y_NRCODES, STD_AC_Y_VALUES, JpgInfo.STD_AC_Y_HT);
-    BuildSTDHuffTab(STD_DC_UV_NRCODES, STD_DC_UV_VALUES, JpgInfo.STD_DC_UV_HT);
-    BuildSTDHuffTab(STD_AC_UV_NRCODES, STD_AC_UV_VALUES, JpgInfo.STD_AC_UV_HT);
+    buildSTDHuffTab(STD_DC_Y_NRCODES, STD_DC_Y_VALUES, JpgInfo.STD_DC_Y_HT);
+    buildSTDHuffTab(STD_AC_Y_NRCODES, STD_AC_Y_VALUES, JpgInfo.STD_AC_Y_HT);
+    buildSTDHuffTab(STD_DC_UV_NRCODES, STD_DC_UV_VALUES, JpgInfo.STD_DC_UV_HT);
+    buildSTDHuffTab(STD_AC_UV_NRCODES, STD_AC_UV_VALUES, JpgInfo.STD_AC_UV_HT);
 
     //LOGI("finish hufman");
-    nDataLen = ProcessData(&JpgInfo, pYBuf, pUBuf, pVBuf, width, height, nYLen, nYLen, nYLen, pOut,
-                           nDataLen);
+    nDataLen = ProcessData(&JpgInfo, pYBuf, pUBuf, pVBuf, width, height, pOut, nDataLen);
 
     //LOGI("finish process yuv");
     nDataLen = writeEOI(pOut, nDataLen);
