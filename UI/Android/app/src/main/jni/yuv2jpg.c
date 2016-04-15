@@ -685,93 +685,62 @@ int ProcessDU(JPEGINFO *pJpgInfo, float *lpBuf, float *quantTab, HUFFCODE *dcHuf
     return nDataLen;
 }
 
-
-int ProcessData(JPEGINFO *pJpgInfo, BYTE *lpYBuf, BYTE *lpUBuf, BYTE *lpVBuf,
+/**
+ * 开始编码:先分块，再偏移128，再分别处理YUV通道
+ */
+int startEncode(JPEGINFO *pJpgInfo, BYTE *lpYBuf, BYTE *lpUBuf, BYTE *lpVBuf,
                 int width, int height, BYTE *pOut, int nDataLen) {
-    size_t yBufLen = strlen((const char *) lpYBuf);
-    size_t uBufLen = strlen((const char *) lpUBuf);
-    size_t vBufLen = strlen((const char *) lpVBuf);
-    float dctYBuf[DCTBLOCKSIZE];
-    float dctUBuf[DCTBLOCKSIZE];
-    float dctVBuf[DCTBLOCKSIZE];
-    unsigned int mcuNum = 0;
-    short yDC = 0;
-    short uDC = 0;
-    short vDC = 0;
-    BYTE yCounter = 0;
-    BYTE uCounter = 0;
-    BYTE vCounter = 0;
+
+    float dctYBuf[DCTBLOCKSIZE], dctUBuf[DCTBLOCKSIZE], dctVBuf[DCTBLOCKSIZE];
+
+    /**
+     * 余弦变换后的直流分量
+     */
+    short yDC = 0, uDC = 0, vDC = 0;
+
     unsigned int i = 0;
-    unsigned int j = 0;
-    unsigned int k = 0;
-    unsigned int p = 0;
-    unsigned int m = 0;
-    unsigned int n = 0;
-    unsigned int s = 0;
+    unsigned int bufPos = 0;
+    unsigned int matrixCounter = 0;
 
-    mcuNum = (height * width * 3) / (DCTBLOCKSIZE * 3);
+    // 分块数目，8*8矩阵的数目
+    int mcuNum = height * width / DCTBLOCKSIZE;
 
-    for (p = 0; p < mcuNum; p++) {
-        yCounter = 1;//MCUIndex[SamplingType][0];
-        uCounter = 1;//MCUIndex[SamplingType][1];
-        vCounter = 1;//MCUIndex[SamplingType][2];
+    for (matrixCounter = 0; matrixCounter < mcuNum; matrixCounter++) {
+        /**
+         * todo memset 的效率
+         * 由于离散余弦变化要求定义域的对称，所以在编码时把RGB的数值范围从[0，255]统一减去128偏移成[-128，127]。
+         */
+        for (i = 0; i < DCTBLOCKSIZE; i++, bufPos++) {
+            dctYBuf[i] = lpYBuf[bufPos] - 128;
+            dctUBuf[i] = lpUBuf[bufPos] - 128;
+            dctVBuf[i] = lpVBuf[bufPos] - 128;
+        }
 
-        for (; i < yBufLen; i += DCTBLOCKSIZE) {
-            for (j = 0; j < DCTBLOCKSIZE; j++) {
-                dctYBuf[j] = (float) (lpYBuf[i + j] - 128);
-            }
-            if (yCounter > 0) {
-                --yCounter;
-                nDataLen = ProcessDU(pJpgInfo, dctYBuf, pJpgInfo->YQT_DCT, pJpgInfo->STD_DC_Y_HT,
-                                     pJpgInfo->STD_AC_Y_HT, &yDC, pOut, nDataLen);
-            }
-            else {
-                break;
-            }
-        }
-        //------------------------------------------------------------------
-        for (; m < uBufLen; m += DCTBLOCKSIZE) {
-            for (n = 0; n < DCTBLOCKSIZE; n++) {
-                dctUBuf[n] = (float) (lpUBuf[m + n] - 128);
-            }
-            if (uCounter > 0) {
-                --uCounter;
-                nDataLen = ProcessDU(pJpgInfo, dctUBuf, pJpgInfo->UVQT_DCT, pJpgInfo->STD_DC_UV_HT,
-                                     pJpgInfo->STD_AC_UV_HT, &uDC, pOut, nDataLen);
-            }
-            else {
-                break;
-            }
-        }
-        //-------------------------------------------------------------------
-        for (; s < vBufLen; s += DCTBLOCKSIZE) {
-            for (k = 0; k < DCTBLOCKSIZE; k++) {
-                dctVBuf[k] = (float) (lpVBuf[s + k] - 128);
-            }
-            if (vCounter > 0) {
-                --vCounter;
-                nDataLen = ProcessDU(pJpgInfo, dctVBuf, pJpgInfo->UVQT_DCT, pJpgInfo->STD_DC_UV_HT,
-                                     pJpgInfo->STD_AC_UV_HT, &vDC, pOut, nDataLen);
-            }
-            else {
-                break;
-            }
-        }
+        /**
+         * 分别处理YUV三通道的小色块（8*8）
+         */
+        nDataLen = ProcessDU(pJpgInfo, dctYBuf, pJpgInfo->YQT_DCT, pJpgInfo->STD_DC_Y_HT,
+                             pJpgInfo->STD_AC_Y_HT, &yDC, pOut, nDataLen);
+        nDataLen = ProcessDU(pJpgInfo, dctUBuf, pJpgInfo->UVQT_DCT, pJpgInfo->STD_DC_UV_HT,
+                             pJpgInfo->STD_AC_UV_HT, &uDC, pOut, nDataLen);
+        nDataLen = ProcessDU(pJpgInfo, dctVBuf, pJpgInfo->UVQT_DCT, pJpgInfo->STD_DC_UV_HT,
+                             pJpgInfo->STD_AC_UV_HT, &vDC, pOut, nDataLen);
+
     }
     return nDataLen;
 }
 
 /**
+ * 接受的YUV通道输入，每通道长度均为 width * height
  * http://blog.chinaunix.net/uid-23065002-id-3999981.html
  */
-int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int nStride, int quality,
-            BYTE *pOut, unsigned long *pnOutSize) {
+int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int nStride,
+            int quality, BYTE *pOut, unsigned long *pnOutSize) {
 
     //LOGI("start");
     BYTE *pYBuf = in_Y;
     BYTE *pUBuf = in_U;
     BYTE *pVBuf = in_V;
-    int nYLen = nStride * height;
 
     //LOGI("init jpgInfo");
     int nDataLen;
@@ -810,8 +779,8 @@ int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int nStri
     buildSTDHuffTab(STD_DC_UV_NRCODES, STD_DC_UV_VALUES, JpgInfo.STD_DC_UV_HT);
     buildSTDHuffTab(STD_AC_UV_NRCODES, STD_AC_UV_VALUES, JpgInfo.STD_AC_UV_HT);
 
-    //LOGI("finish hufman");
-    nDataLen = ProcessData(&JpgInfo, pYBuf, pUBuf, pVBuf, width, height, pOut, nDataLen);
+    //LOGI("finish build hufman");
+    nDataLen = startEncode(&JpgInfo, pYBuf, pUBuf, pVBuf, width, height, pOut, nDataLen);
 
     //LOGI("finish process yuv");
     nDataLen = writeEOI(pOut, nDataLen);

@@ -316,7 +316,7 @@ int writeByte(BYTE val, BYTE *pOut, int nDataLen);
 
 void buildSTDHuffTab(BYTE *nrCodes, BYTE *stdTab, HUFFCODE *huffCode);
 
-int ProcessData(JPEGINFO *pJpgInfo, BYTE *lpYBuf, BYTE *lpUBuf, BYTE *lpVBuf,
+int startEncode(JPEGINFO *pJpgInfo, BYTE *lpYBuf, BYTE *lpUBuf, BYTE *lpVBuf,
                 int width, int height, BYTE *pOut, int nDataLen);
 
 int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int nStride, int quality,
