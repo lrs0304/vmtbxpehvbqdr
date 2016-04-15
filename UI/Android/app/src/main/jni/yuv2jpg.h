@@ -105,15 +105,11 @@ static double AANScaleFactor[8] = {
 };
 
 static BYTE STD_DC_Y_NRCODES[17] = {0, 0, 1, 5, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
-
 static BYTE STD_DC_Y_VALUES[12] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
-
 static BYTE STD_DC_UV_NRCODES[17] = {0, 0, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0};
-
 static BYTE STD_DC_UV_VALUES[12] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
 
 static BYTE STD_AC_Y_NRCODES[17] = {0, 0, 2, 1, 3, 3, 2, 4, 3, 5, 5, 4, 4, 0, 0, 1, 0X7D};
-
 static BYTE STD_AC_Y_VALUES[162] = {
         0x01, 0x02, 0x03, 0x00, 0x04, 0x11, 0x05, 0x12,
         0x21, 0x31, 0x41, 0x06, 0x13, 0x51, 0x61, 0x07,
@@ -137,9 +133,7 @@ static BYTE STD_AC_Y_VALUES[162] = {
         0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8,
         0xf9, 0xfa
 };
-
 static BYTE STD_AC_UV_NRCODES[17] = {0, 0, 2, 1, 2, 4, 4, 3, 4, 7, 5, 4, 4, 0, 1, 2, 0X77};
-
 static BYTE STD_AC_UV_VALUES[162] = {
         0x00, 0x01, 0x02, 0x03, 0x11, 0x04, 0x05, 0x21,
         0x31, 0x06, 0x12, 0x41, 0x51, 0x07, 0x61, 0x71,
@@ -221,14 +215,45 @@ typedef struct tagJPEGSOF0_24BITS {
     BYTE QTV;
 } JPEGSOF0_24BITS;
 
-typedef struct tagJPEGDHT {
+/**
+ * Difine Huffman Table，定义哈夫曼表
+ * + 标记代码             2字节       固定值0xFFC4
+ * + 包含2个具体字段：
+ *    ①数据长度          2字节       字段①和多个字段②的总长度。即不包括标记代码，但包括本字段
+ *    ②哈夫曼表
+ *       a)表ID和表类型   1字节       高4位：类型，只有两个值可选。0：DC直流；1：AC交流
+ *                                  低4位：哈夫曼表ID，注意，DC表和AC表分开编码
+ *       b)不同位数的码字数量  16字节
+ *       c)编码内容       16个不同位数的码字数量之和（字节）
+ *
+ *       本标记段中，字段②可以重复出现（一般4次），也可以致出现1次。
+ *       例如，Adobe Photoshop 生成的JPEG图片文件中只有1个DHT标记段，里边包含了4个哈夫曼表；
+ *       而Macromedia Fireworks生成的JPEG图片文件则有4个DHT标记段，每个DHT标记段只有一个哈夫曼表。
+ */
+typedef struct _JPEGDHT {
     unsigned short segmentTag;
     unsigned short length;
     BYTE tableInfo;
-    BYTE huffCode[16];
+    BYTE huffCode[16];/*先不要去掉这里，没有优化完 函数writeDHT*/
 } JPEGDHT;
 
-typedef struct tagJPEGSOS_24BITS {
+/**
+ * SOS，Start of Scan，扫描开始 12字节
+ * + 标记代码        2字节     固定值0xFFDA
+ * + 包含2个具体字段：
+ *   ①数据长度      2字节     ①~④两个字段的总长度。即不包括标记代码，但包括本字段
+ *   ②颜色分量数    1字节     应该和SOF中的字段⑤的值相同，即：1：灰度图是；3： YCrCb或YIQ；4：CMYK。而JFIF中使用YCrCb，故这里颜色分量数恒为3
+ *   ③颜色分量信息
+ *    a) 颜色分量ID       1字节
+ *    b) 直流/交流系数表号 1字节     高4位：直流分量使用的哈夫曼树编号。低4位：交流分量使用的哈夫曼树编号
+ *   ④ 压缩图像数据
+ *    a)谱选择开始         1字节     固定值0x00
+ *    b)谱选择结束         1字节     固定值0x3F
+ *    c)谱选择             1字节     在基本JPEG中总为00
+ *    本标记段中，字段③应该重复出现，有多少个颜色分量（字段②），就出现多少次（一般为3次）。
+ *    本段结束后，紧接着就是真正的图像信息了。图像信息直至遇到EOI标记才表示结束。
+ */
+typedef struct _JPEGSOS_24BITS {
     unsigned short segmentTag;
     unsigned short length;
     BYTE sigNum;
@@ -283,13 +308,13 @@ int writeDQT(JPEGINFO *pJpgInfo, BYTE *pOut, int nDataLen);
 
 int writeSOF(BYTE *pOut, int nDataLen, int width, int height);
 
-int WriteDHT(BYTE *pOut, int nDataLen);
+int writeDHT(BYTE *pOut, int nDataLen);
 
-int WriteSOS(BYTE *pOut, int nDataLen);
+int writeSOS(BYTE *pOut, int nDataLen);
 
-int WriteByte(BYTE val, BYTE *pOut, int nDataLen);
+int writeByte(BYTE val, BYTE *pOut, int nDataLen);
 
-void BuildSTDHuffTab(BYTE *nrcodes, BYTE *stdTab, HUFFCODE *huffCode);
+void BuildSTDHuffTab(BYTE *nrCodes, BYTE *stdTab, HUFFCODE *huffCode);
 
 int ProcessData(JPEGINFO *pJpgInfo, BYTE *lpYBuf, BYTE *lpUBuf, BYTE *lpVBuf, int width, int height,
                 int yBufLen, int uBufLen, int vBufLen, BYTE *pOut, int nDataLen);

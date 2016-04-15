@@ -102,7 +102,7 @@ void initQuantizationTableForAANDCT(JPEGINFO *pJpgInfo) {
 /**
  * 返回2048以内的数字的二进制长度
  */
-BYTE ComputeVLI(short val) {
+BYTE computeVLI(short val) {
     BYTE binStrLen = 0;
     if (val < 0) val = -val;
 
@@ -141,11 +141,11 @@ void buildVLITable(JPEGINFO *pJpgInfo) {
     short i = 0;
 
     for (i = 0; i < DC_MAX_QUANTED; ++i) {
-        pJpgInfo->pVLITAB[i] = ComputeVLI(i);
+        pJpgInfo->pVLITAB[i] = computeVLI(i);
     }
 
     for (i = DC_MIN_QUANTED; i < 0; ++i) {
-        pJpgInfo->pVLITAB[i] = ComputeVLI(i);
+        pJpgInfo->pVLITAB[i] = computeVLI(i);
     }
 }
 
@@ -256,6 +256,7 @@ int writeDQT(JPEGINFO *pJpgInfo, BYTE *pOut, int nDataLen) {
 }
 
 /**
+ * 交换高8位与低8位<br/>
  *JPEG文件格式中，一个字（16位）的存储使用的是 Motorola 格式,
  * 而不是 Intel 格式。也就是说, 一个字的高字节（高8位）在数据流的前面,
  * 低字节（低8位）在数据流的后面，与平时习惯的Intel格式不一样。.
@@ -305,71 +306,73 @@ int writeSOF(BYTE *pOut, int nDataLen, int width, int height) {
     return nDataLen + sizeof(SOF) - 1;
 }
 
-
-int WriteDHT(BYTE *pOut, int nDataLen) {
+/**
+ * 写入 Define Huffman Table，定义哈夫曼表
+ * todo memcpy与for循环效率对比
+ */
+int writeDHT(BYTE *pOut, int nDataLen) {
     unsigned int i = 0;
 
     JPEGDHT DHT;
     DHT.segmentTag = 0xC4FF;
     DHT.length = convertByteFromIntelToMotorola(19 + 12);
     DHT.tableInfo = 0x00;
-    for (i = 0; i < 16; i++) {
-        DHT.huffCode[i] = STD_DC_Y_NRCODES[i + 1];
-    }
-    //memcpy(pOut+nDataLen,&DHT,sizeof(DHT));
+    //    for (i = 0; i < 16; i++) {
+    //        DHT.huffCode[i] = STD_DC_Y_NRCODES[i + 1];
+    //    }
+
     memcpy(pOut + nDataLen, &DHT.segmentTag, 2);
     memcpy(pOut + nDataLen + 2, &DHT.length, 2);
     *(pOut + nDataLen + 4) = DHT.tableInfo;
-    memcpy(pOut + nDataLen + 5, DHT.huffCode, 16);
+    memcpy(pOut + nDataLen + 5, /*DHT.huffCode*/&STD_DC_Y_NRCODES[1], 16);
     nDataLen += sizeof(DHT) - 1;
     for (i = 0; i <= 11; i++) {
-        nDataLen = WriteByte(STD_DC_Y_VALUES[i], pOut, nDataLen);
+        nDataLen = writeByte(STD_DC_Y_VALUES[i], pOut, nDataLen);
     }
     DHT.tableInfo = 0x01;
-    for (i = 0; i < 16; i++) {
-        DHT.huffCode[i] = STD_DC_UV_NRCODES[i + 1];
-    }
-    //memcpy(pOut+nDataLen,&DHT,sizeof(DHT));
+    // for (i = 0; i < 16; i++) {
+    //     DHT.huffCode[i] = STD_DC_UV_NRCODES[i + 1];
+    // }
     memcpy(pOut + nDataLen, &DHT.segmentTag, 2);
     memcpy(pOut + nDataLen + 2, &DHT.length, 2);
     *(pOut + nDataLen + 4) = DHT.tableInfo;
-    memcpy(pOut + nDataLen + 5, DHT.huffCode, 16);
+    memcpy(pOut + nDataLen + 5, /*DHT.huffCode*/&STD_DC_UV_NRCODES[1], 16);
     nDataLen += sizeof(DHT) - 1;
     for (i = 0; i <= 11; i++) {
-        nDataLen = WriteByte(STD_DC_UV_VALUES[i], pOut, nDataLen);
+        nDataLen = writeByte(STD_DC_UV_VALUES[i], pOut, nDataLen);
     }
     DHT.length = convertByteFromIntelToMotorola(19 + 162);
     DHT.tableInfo = 0x10;
-    for (i = 0; i < 16; i++) {
-        DHT.huffCode[i] = STD_AC_Y_NRCODES[i + 1];
-    }
-    //memcpy(pOut+nDataLen,&DHT,sizeof(DHT));
+    //for (i = 0; i < 16; i++) {
+    //    DHT.huffCode[i] = STD_AC_Y_NRCODES[i + 1];
+    //}
     memcpy(pOut + nDataLen, &DHT.segmentTag, 2);
     memcpy(pOut + nDataLen + 2, &DHT.length, 2);
     *(pOut + nDataLen + 4) = DHT.tableInfo;
-    memcpy(pOut + nDataLen + 5, DHT.huffCode, 16);
+    memcpy(pOut + nDataLen + 5, /*DHT.huffCode*/&STD_AC_Y_NRCODES[1], 16);
     nDataLen += sizeof(DHT) - 1;
     for (i = 0; i <= 161; i++) {
-        nDataLen = WriteByte(STD_AC_Y_VALUES[i], pOut, nDataLen);
+        nDataLen = writeByte(STD_AC_Y_VALUES[i], pOut, nDataLen);
     }
     DHT.tableInfo = 0x11;
-    for (i = 0; i < 16; i++) {
-        DHT.huffCode[i] = STD_AC_UV_NRCODES[i + 1];
-    }
-    //memcpy(pOut + nDataLen,&DHT,sizeof(DHT));
+    // for (i = 0; i < 16; i++) {
+    //     DHT.huffCode[i] = STD_AC_UV_NRCODES[i + 1];
+    // }
     memcpy(pOut + nDataLen, &DHT.segmentTag, 2);
     memcpy(pOut + nDataLen + 2, &DHT.length, 2);
     *(pOut + nDataLen + 4) = DHT.tableInfo;
-    memcpy(pOut + nDataLen + 5, DHT.huffCode, 16);
+    memcpy(pOut + nDataLen + 5, /*DHT.huffCode*/&STD_AC_UV_NRCODES[1], 16);
     nDataLen += sizeof(DHT) - 1;
     for (i = 0; i <= 161; i++) {
-        nDataLen = WriteByte(STD_AC_UV_VALUES[i], pOut, nDataLen);
+        nDataLen = writeByte(STD_AC_UV_VALUES[i], pOut, nDataLen);
     }
     return nDataLen;
 }
 
-
-int WriteSOS(BYTE *pOut, int nDataLen) {
+/**
+ * SOS，Start of Scan，扫描开始 12字节,以固定值0xFFDA开始
+ */
+int writeSOS(BYTE *pOut, int nDataLen) {
     JPEGSOS_24BITS SOS;
     SOS.segmentTag = 0xDAFF;
     SOS.length = 0x0C00;
@@ -387,25 +390,23 @@ int WriteSOS(BYTE *pOut, int nDataLen) {
     return nDataLen + sizeof(SOS);
 }
 
-int WriteByte(BYTE val, BYTE *pOut, int nDataLen) {
-    pOut[nDataLen] = val;
-    return nDataLen + 1;
-}
-
-void BuildSTDHuffTab(BYTE *nrcodes, BYTE *stdTab, HUFFCODE *huffCode) {
-    BYTE i = 0;
-    BYTE j = 0;
+/**
+ * 生成标准Huffman表
+ */
+void BuildSTDHuffTab(BYTE *nrCodes, BYTE *stdTab, HUFFCODE *huffCode) {
+    BYTE i;
+    BYTE j;
     BYTE k = 0;
     unsigned short code = 0;
 
     for (i = 1; i <= 16; i++) {
-        for (j = 1; j <= nrcodes[i]; j++) {
+        for (j = 1; j <= nrCodes[i]; j++) {
             huffCode[stdTab[k]].code = code;
             huffCode[stdTab[k]].length = i;
             ++k;
             ++code;
         }
-        code *= 2;
+        code = code << 1;//code *= 2;
     }
 
     for (i = 0; i < k; i++) {
@@ -413,39 +414,55 @@ void BuildSTDHuffTab(BYTE *nrcodes, BYTE *stdTab, HUFFCODE *huffCode) {
     }
 }
 
+/**
+ * 写入二进制流
+ */
+int writeBitsStream(JPEGINFO *pJpgInfo, unsigned short value, BYTE codeLen, BYTE *out,
+                    int dataLen) {
 
-int WriteBitsStream(JPEGINFO *pJpgInfo, unsigned short value, BYTE codeLen, BYTE *pOut,
-                    int nDataLen) {
-    signed char posval;//bit position in the bitstring we read, should be<=15 and >=0
-    posval = codeLen - 1;
-    while (posval >= 0) {
-        if (value & mask[posval]) {
+    int posVal = codeLen - 1;//bit position in the bitString , should be<=15 and >=0
+
+    while (posVal >= 0) {
+        if (value & mask[posVal]) {
             pJpgInfo->bytenew |= mask[pJpgInfo->bytePos];
         }
-        posval--;
+        posVal--;
         pJpgInfo->bytePos--;
 
         if (pJpgInfo->bytePos < 0) {
             if (pJpgInfo->bytenew == 0xFF) {
-                nDataLen = WriteByte(0xFF, pOut, nDataLen);
-                nDataLen = WriteByte(0, pOut, nDataLen);
-            }
-            else {
-                nDataLen = WriteByte(pJpgInfo->bytenew, pOut, nDataLen);
+                dataLen = writeByte(0xFF, out, dataLen);
+                dataLen = writeByte(0x00, out, dataLen);
+            } else {
+                dataLen = writeByte(pJpgInfo->bytenew, out, dataLen);
             }
             pJpgInfo->bytePos = 7;
             pJpgInfo->bytenew = 0;
         }
     }
-    return nDataLen;
+    return dataLen;
 }
 
-int WriteBits(JPEGINFO *pJpgInfo, HUFFCODE huffCode, BYTE *pOut, int nDataLen) {
-    return WriteBitsStream(pJpgInfo, huffCode.code, huffCode.length, pOut, nDataLen);
+/**
+ * 赫夫曼编码的值
+ */
+int writeBitsHuffmanCode(JPEGINFO *pJpgInfo, HUFFCODE huffCode, BYTE *pOut, int nDataLen) {
+    return writeBitsStream(pJpgInfo, huffCode.code, huffCode.length, pOut, nDataLen);
 }
 
-int WriteBits2(JPEGINFO *pJpgInfo, SYM2 sym, BYTE *pOut, int nDataLen) {
-    return WriteBitsStream(pJpgInfo, sym.amplitude, sym.codeLen, pOut, nDataLen);
+/*
+ * AC/DC信号的振幅
+ */
+int writeBitsAmplitude(JPEGINFO *pJpgInfo, SYM2 sym, BYTE *pOut, int nDataLen) {
+    return writeBitsStream(pJpgInfo, sym.amplitude, sym.codeLen, pOut, nDataLen);
+}
+
+/**
+ * 写入一字节
+ */
+int writeByte(BYTE val, BYTE *pOut, int nDataLen) {
+    pOut[nDataLen] = val;
+    return nDataLen + 1;
 }
 
 double mypow(double x, double y) {
@@ -459,7 +476,7 @@ double mypow(double x, double y) {
 SYM2 BuildSym2(short value) {
     SYM2 Symbol;
 
-    Symbol.codeLen = ComputeVLI(value);
+    Symbol.codeLen = computeVLI(value);
     Symbol.amplitude = 0;
     if (value >= 0) {
         Symbol.amplitude = value;
@@ -496,7 +513,7 @@ void RLEComp(short *lpbuf, ACSYM *lpOutBuf, BYTE *resultLen) {
         }
         else {
             lpOutBuf[j].zeroLen = zeroNum;
-            lpOutBuf[j].codeLen = ComputeVLI(lpbuf[i]);
+            lpOutBuf[j].codeLen = computeVLI(lpbuf[i]);
             lpOutBuf[j].amplitude = lpbuf[i];
             zeroNum = 0;
             ++(*resultLen);
@@ -511,7 +528,7 @@ void RLEComp(short *lpbuf, ACSYM *lpOutBuf, BYTE *resultLen) {
  * http://wenku.baidu.com/view/f641852a915f804d2b16c183.html<br/>
  * http://blog.csdn.net/sshcx/article/details/1674224
  */
-void FastDCT(float *lpBuff) {
+void fastDCT(float *lpBuff) {
     float tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7;
     float tmp10, tmp11, tmp12, tmp13;
     float z1, z2, z3, z4, z5, z11, z13;
@@ -618,7 +635,7 @@ int ProcessDU(JPEGINFO *pJpgInfo, float *lpBuf, float *quantTab, HUFFCODE *dcHuf
     short sigBuf[DCTBLOCKSIZE];
     ACSYM acSym[DCTBLOCKSIZE];
 
-    FastDCT(lpBuf);
+    fastDCT(lpBuf);
 
     for (i = 0; i < DCTBLOCKSIZE; i++) {
         sigBuf[ZigZagTable[i]] = (short) ((lpBuf[i] * quantTab[i] + 16384.5) - 16384);
@@ -628,11 +645,12 @@ int ProcessDU(JPEGINFO *pJpgInfo, float *lpBuf, float *quantTab, HUFFCODE *dcHuf
     *DC = sigBuf[0];
 
     if (diffVal == 0) {
-        nDataLen = WriteBits(pJpgInfo, dcHuffTab[0], pOut, nDataLen);
+        nDataLen = writeBitsHuffmanCode(pJpgInfo, dcHuffTab[0], pOut, nDataLen);
     }
     else {
-        nDataLen = WriteBits(pJpgInfo, dcHuffTab[pJpgInfo->pVLITAB[diffVal]], pOut, nDataLen);
-        nDataLen = WriteBits2(pJpgInfo, BuildSym2(diffVal), pOut, nDataLen);
+        nDataLen = writeBitsHuffmanCode(pJpgInfo, dcHuffTab[pJpgInfo->pVLITAB[diffVal]], pOut,
+                                        nDataLen);
+        nDataLen = writeBitsAmplitude(pJpgInfo, BuildSym2(diffVal), pOut, nDataLen);
     }
 
     for (i = 63; (i > 0) && (sigBuf[i] == 0); i--) {
@@ -640,22 +658,24 @@ int ProcessDU(JPEGINFO *pJpgInfo, float *lpBuf, float *quantTab, HUFFCODE *dcHuf
     }
 
     if (i == 0) {
-        nDataLen = WriteBits(pJpgInfo, acHuffTab[0x00], pOut, nDataLen);
+        nDataLen = writeBitsHuffmanCode(pJpgInfo, acHuffTab[0x00], pOut, nDataLen);
     }
     else {
         RLEComp(sigBuf, &acSym[0], &acLen);
         for (j = 0; j < acLen; j++) {
             if (acSym[j].codeLen == 0) {
-                nDataLen = WriteBits(pJpgInfo, acHuffTab[0xF0], pOut, nDataLen);
+                nDataLen = writeBitsHuffmanCode(pJpgInfo, acHuffTab[0xF0], pOut, nDataLen);
             }
             else {
-                nDataLen = WriteBits(pJpgInfo, acHuffTab[acSym[j].zeroLen * 16 + acSym[j].codeLen],
-                                     pOut, nDataLen);
-                nDataLen = WriteBits2(pJpgInfo, BuildSym2(acSym[j].amplitude), pOut, nDataLen);
+                nDataLen = writeBitsHuffmanCode(pJpgInfo,
+                                                acHuffTab[acSym[j].zeroLen * 16 + acSym[j].codeLen],
+                                                pOut, nDataLen);
+                nDataLen = writeBitsAmplitude(pJpgInfo, BuildSym2(acSym[j].amplitude), pOut,
+                                              nDataLen);
             }
         }
         if (i != 63) {
-            nDataLen = WriteBits(pJpgInfo, acHuffTab[0x00], pOut, nDataLen);
+            nDataLen = writeBitsHuffmanCode(pJpgInfo, acHuffTab[0x00], pOut, nDataLen);
         }
     }
     return nDataLen;
@@ -777,8 +797,8 @@ int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int nStri
     nDataLen = writeAPP0(pOut, nDataLen);
     nDataLen = writeDQT(&JpgInfo, pOut, nDataLen);
     nDataLen = writeSOF(pOut, nDataLen, width, height);
-    nDataLen = WriteDHT(pOut, nDataLen);
-    nDataLen = WriteSOS(pOut, nDataLen);
+    nDataLen = writeDHT(pOut, nDataLen);
+    nDataLen = writeSOS(pOut, nDataLen);
 
     //LOGI("finish write");
     BuildSTDHuffTab(STD_DC_Y_NRCODES, STD_DC_Y_VALUES, JpgInfo.STD_DC_Y_HT);
