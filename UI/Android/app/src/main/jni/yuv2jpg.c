@@ -495,36 +495,28 @@ SYM2 buildSym2(short value) {
 }
 
 /**
- * todo
+ * 行程编码
  */
 void RLEComp(short *lpBuf, ACSYM *lpOutBuf, BYTE *resultLen) {
+    BYTE MAX_ZERO_LEN = 15;
     BYTE zeroNum = 0;
-    unsigned int EOBPos = 0;
-    BYTE MAXZEROLEN = 15;
-    unsigned int i = 0;
-    unsigned int j = 0;
+    unsigned int EOBPos;
+    unsigned int outIndex = 0;
 
-    EOBPos = DCTBLOCKSIZE - 1;
-    for (i = EOBPos; i > 0; i--) {
-        if (lpBuf[i] == 0) {
-            --EOBPos;
-        }
-        else {
-            break;
-        }
-    }
+    // EOB 出现的位置（行程编码中EOB表示编码结束，这里以0来做行程编码，末端全为零则编码结束）
+    for (EOBPos = DCTBLOCKSIZE - 1; (EOBPos > 0) && (lpBuf[EOBPos] == 0); EOBPos--);
 
-    for (i = 1; i <= EOBPos; i++) {
-        if (lpBuf[i] == 0 && zeroNum < MAXZEROLEN) {
+    for (unsigned int i = 1; i <= EOBPos; i++) {
+        if (lpBuf[i] == 0 && zeroNum < MAX_ZERO_LEN) {
+            // 分块最长为15个0一组
             ++zeroNum;
-        }
-        else {
-            lpOutBuf[j].zeroLen = zeroNum;
-            lpOutBuf[j].codeLen = computeVLI(lpBuf[i]);
-            lpOutBuf[j].amplitude = lpBuf[i];
+        } else {
+            lpOutBuf[outIndex].zeroLen = zeroNum;
+            lpOutBuf[outIndex].codeLen = computeVLI(lpBuf[i]);
+            lpOutBuf[outIndex].amplitude = lpBuf[i];
             zeroNum = 0;
             ++(*resultLen);
-            ++j;
+            ++outIndex;
         }
     }
 }
@@ -542,7 +534,7 @@ void fastDCT(float *lpBuff) {
     float *dataPtr;
     int ctr;
 
-
+    // 第一部分，对行进行计算
     dataPtr = lpBuff;
     for (ctr = DCTSIZE - 1; ctr >= 0; ctr--) {
         tmp0 = dataPtr[0] + dataPtr[7];
@@ -554,7 +546,7 @@ void fastDCT(float *lpBuff) {
         tmp3 = dataPtr[3] + dataPtr[4];
         tmp4 = dataPtr[3] - dataPtr[4];
 
-
+        // 对偶数项进行运算
         tmp10 = tmp0 + tmp3;
         tmp13 = tmp0 - tmp3;
         tmp11 = tmp1 + tmp2;
@@ -567,7 +559,7 @@ void fastDCT(float *lpBuff) {
         dataPtr[2] = tmp13 + z1; /* phase 5 */
         dataPtr[6] = tmp13 - z1;
 
-
+        // 对奇数项进行计算
         tmp10 = tmp4 + tmp5; /* phase 2 */
         tmp11 = tmp5 + tmp6;
         tmp12 = tmp6 + tmp7;
@@ -588,6 +580,7 @@ void fastDCT(float *lpBuff) {
         dataPtr += DCTSIZE;
     }
 
+    // 第二部分，对列进行计算
     dataPtr = lpBuff;
     for (ctr = DCTSIZE - 1; ctr >= 0; ctr--) {
         tmp0 = dataPtr[DCTSIZE * 0] + dataPtr[DCTSIZE * 7];
@@ -599,7 +592,7 @@ void fastDCT(float *lpBuff) {
         tmp3 = dataPtr[DCTSIZE * 3] + dataPtr[DCTSIZE * 4];
         tmp4 = dataPtr[DCTSIZE * 3] - dataPtr[DCTSIZE * 4];
 
-
+        // 对偶数项进行运算
         tmp10 = tmp0 + tmp3;
         tmp13 = tmp0 - tmp3;
         tmp11 = tmp1 + tmp2;
@@ -612,6 +605,7 @@ void fastDCT(float *lpBuff) {
         dataPtr[DCTSIZE * 2] = tmp13 + z1; /* phase 5 */
         dataPtr[DCTSIZE * 6] = tmp13 - z1;
 
+        // 对奇数项进行计算
         tmp10 = tmp4 + tmp5; /* phase 2 */
         tmp11 = tmp5 + tmp6;
         tmp12 = tmp6 + tmp7;
@@ -633,11 +627,11 @@ void fastDCT(float *lpBuff) {
     }
 }
 
-/**
- * todo 找代码对找下对8*8的的矩阵进行编码，进行的操作有离散余弦变换，量化，Zigzag，赫夫曼编码，
- */
 long timeCount = 5;
 
+/**
+ * 对8*8的的矩阵进行编码，进行的操作有离散余弦变换，量化，Zigzag，赫夫曼编码，
+ */
 int encodeOne8x8Block(JPEGINFO *pJpgInfo, float *lpBuf, float *quantTab, HUFFCODE *dcHuffTab,
                       HUFFCODE *acHuffTab, short *DC, BYTE *pOut, int nDataLen) {
     BYTE i = 0;                //
