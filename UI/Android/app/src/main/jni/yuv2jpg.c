@@ -1,5 +1,4 @@
 #include "yuv2jpg.h"
-#include <time.h>
 
 /**
  * 将width*height的一维数组重新组装成以8*8小矩阵为大矩阵的一维数组
@@ -627,8 +626,6 @@ void fastDCT(float *lpBuff) {
     }
 }
 
-long timeCount = 5;
-
 /**
  * 对8*8的的矩阵进行编码，进行的操作有离散余弦变换，量化，Zigzag，赫夫曼编码，
  */
@@ -640,21 +637,12 @@ int encodeOne8x8Block(JPEGINFO *pJpgInfo, float *lpBuf, float *quantTab, HUFFCOD
     unsigned int j = 0;        //
     short sigBuf[DCTBLOCKSIZE];//量化后信号缓冲
     ACSYM acSym[DCTBLOCKSIZE]; //AC中间符号缓冲
-    long start = clock();
     // 快速离散余弦变换
     fastDCT(lpBuf);
-    if (timeCount > 0) {
-        LOGI("fast dct %ld\n", clock() - start);
-        start = clock();
-    }
 
     // 量化与Zigzag排练。 todo +16384.5-16384是为了什么
     for (i = 0; i < DCTBLOCKSIZE; i++) {
         sigBuf[ZigZagTable[i]] = (short) ((lpBuf[i] * quantTab[i] + 16384.5) - 16384);
-    }
-    if (timeCount > 0) {
-        LOGI("quatization %ld\n", clock() - start);
-        start = clock();
     }
 
     //---------------------------DC编码---------------------------------
@@ -669,10 +657,7 @@ int encodeOne8x8Block(JPEGINFO *pJpgInfo, float *lpBuf, float *quantTab, HUFFCOD
                 pJpgInfo, dcHuffTab[pJpgInfo->pVLITAB[diffVal]], pOut, nDataLen);
         nDataLen = writeBitsAmplitude(pJpgInfo, buildSym2(diffVal), pOut, nDataLen);
     }
-    if (timeCount > 0) {
-        LOGI("dc encode %ld\n", clock() - start);
-        start = clock();
-    }
+
     //---------------------------AC编码---------------------------------
     // 判断AC信号是否全0
     for (i = DCTBLOCKSIZE - 1; (i > 0) && (sigBuf[i] == 0); i--);
@@ -704,10 +689,7 @@ int encodeOne8x8Block(JPEGINFO *pJpgInfo, float *lpBuf, float *quantTab, HUFFCOD
             nDataLen = writeBitsHuffmanCode(pJpgInfo, acHuffTab[0x00], pOut, nDataLen);
         }
     }
-    if (timeCount > 0) {
-        LOGI("ac %ld--------------------------------------------\n", clock() - start);
-    }
-    timeCount--;
+
     return nDataLen;
 }
 
@@ -763,7 +745,6 @@ int startEncode(JPEGINFO *pJpgInfo, BYTE *lpYBuf, BYTE *lpUBuf, BYTE *lpVBuf,
 int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int nStride,
             int quality, BYTE *pOut, int *pnOutSize) {
 
-    long start = clock();
     //LOGI("start");
     BYTE *pYBuf = in_Y;
     BYTE *pUBuf = in_U;
@@ -780,20 +761,17 @@ int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int nStri
     divBufferInto8x8Matrix(pYBuf, width, height, nStride);
     divBufferInto8x8Matrix(pUBuf, width, height, nStride);
     divBufferInto8x8Matrix(pVBuf, width, height, nStride);
-    LOGI("finish divide block, time: %ld\n", clock() - start);
-    start = clock();
+    //LOGI("finish divide block, time: 1139\n");
 
     // 根据输入的压缩系数重新计算量化表
     quality = qualityScaling(quality);
     scaleSTDQuantizationTable(JpgInfo.YQT, JpgInfo.UVQT, quality);
-    LOGI("quality table, time: %ld\n", clock() - start);
-    start = clock();
+    //LOGI("quality table, time: 3\n");
 
     initQuantizationTableForAANDCT(&JpgInfo);
     JpgInfo.pVLITAB = JpgInfo.VLI_TAB + 2048;
     buildVLITable(&JpgInfo);
-    LOGI("build vli table, time: %ld\n", clock() - start);
-    start = clock();
+    //LOGI("build vli table, time: 114\n");
 
     nDataLen = 0;
     nDataLen = writeSOI(pOut, nDataLen);
@@ -802,18 +780,16 @@ int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int nStri
     nDataLen = writeSOF(pOut, nDataLen, width, height);
     nDataLen = writeDHT(pOut, nDataLen);
     nDataLen = writeSOS(pOut, nDataLen);
-    LOGI("finish write, time: %ld\n", clock() - start);
-    start = clock();
+    //LOGI("finish write, time: 10\n");
 
     buildSTDHuffTab(STD_DC_Y_NRCODES, STD_DC_Y_VALUES, JpgInfo.STD_DC_Y_HT);
     buildSTDHuffTab(STD_AC_Y_NRCODES, STD_AC_Y_VALUES, JpgInfo.STD_AC_Y_HT);
     buildSTDHuffTab(STD_DC_UV_NRCODES, STD_DC_UV_VALUES, JpgInfo.STD_DC_UV_HT);
     buildSTDHuffTab(STD_AC_UV_NRCODES, STD_AC_UV_VALUES, JpgInfo.STD_AC_UV_HT);
-    LOGI("finish build hufman, time: %ld\n", clock() - start);
-    start = clock();
+    //LOGI("finish build hufman, time: 21\n");
 
     nDataLen = startEncode(&JpgInfo, pYBuf, pUBuf, pVBuf, width, height, pOut, nDataLen);
-    LOGI("finish process yuv, time: %ld\n", clock() - start);
+    //LOGI("finish process yuv, time: 35630\n");
 
     nDataLen = writeEOI(pOut, nDataLen);
     //LOGI("write eoi");
