@@ -30,7 +30,7 @@ void Java_com_legaocar_rison_android_util_NativeUtil_initJpegEncoder
 /**
  * format 参数暂时不使用。
  */
-jlong Java_com_legaocar_rison_android_util_NativeUtil_compressYuvToJpeg
+jint Java_com_legaocar_rison_android_util_NativeUtil_compressYuvToJpeg
         (JNIEnv *env, jclass, jbyteArray byteYuv, jbyteArray byteJpg,
          int format, int quality, int width, int height) {
 
@@ -42,7 +42,7 @@ jlong Java_com_legaocar_rison_android_util_NativeUtil_compressYuvToJpeg
         initEncoder(width, height);
     }
 
-    unsigned long dwSize = 0;
+    int dwSize = 0;
 
     //LOGI("get yuv channel");
     getYUVChannelOfNV21((BYTE *) yuv, mChannelY, mChannelU, mChannelV, width, height);

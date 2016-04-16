@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
         height = atoi(argv[3]);
     }
 
-    unsigned long dwSize = 0;
+    int dwSize = 0;
     FILE *rfp = fopen(argv[1], "rb");
     if (NULL == rfp) {
         fprintf(stderr, "fopen fp error:%s\n", strerror(errno));

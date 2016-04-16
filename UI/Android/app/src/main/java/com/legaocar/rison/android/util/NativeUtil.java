@@ -24,7 +24,7 @@ public class NativeUtil {
 
     public native void initJpegEncoder(int width, int height);
 
-    public native long compressYuvToJpeg(byte[] yuv, byte[] jpg, int format, int quality, int width, int height);
+    public native int compressYuvToJpeg(byte[] yuv, byte[] jpg, int format, int quality, int width, int height);
 
     public native void releaseJpegEncoder();
 }

@@ -493,8 +493,10 @@ SYM2 buildSym2(short value) {
     return symbol;
 }
 
-
-void RLEComp(short *lpbuf, ACSYM *lpOutBuf, BYTE *resultLen) {
+/**
+ * todo
+ */
+void RLEComp(short *lpBuf, ACSYM *lpOutBuf, BYTE *resultLen) {
     BYTE zeroNum = 0;
     unsigned int EOBPos = 0;
     BYTE MAXZEROLEN = 15;
@@ -503,7 +505,7 @@ void RLEComp(short *lpbuf, ACSYM *lpOutBuf, BYTE *resultLen) {
 
     EOBPos = DCTBLOCKSIZE - 1;
     for (i = EOBPos; i > 0; i--) {
-        if (lpbuf[i] == 0) {
+        if (lpBuf[i] == 0) {
             --EOBPos;
         }
         else {
@@ -512,13 +514,13 @@ void RLEComp(short *lpbuf, ACSYM *lpOutBuf, BYTE *resultLen) {
     }
 
     for (i = 1; i <= EOBPos; i++) {
-        if (lpbuf[i] == 0 && zeroNum < MAXZEROLEN) {
+        if (lpBuf[i] == 0 && zeroNum < MAXZEROLEN) {
             ++zeroNum;
         }
         else {
             lpOutBuf[j].zeroLen = zeroNum;
-            lpOutBuf[j].codeLen = computeVLI(lpbuf[i]);
-            lpOutBuf[j].amplitude = lpbuf[i];
+            lpOutBuf[j].codeLen = computeVLI(lpBuf[i]);
+            lpOutBuf[j].amplitude = lpBuf[i];
             zeroNum = 0;
             ++(*resultLen);
             ++j;
@@ -630,55 +632,67 @@ void fastDCT(float *lpBuff) {
     }
 }
 
-int ProcessDU(JPEGINFO *pJpgInfo, float *lpBuf, float *quantTab, HUFFCODE *dcHuffTab,
-              HUFFCODE *acHuffTab, short *DC, BYTE *pOut, int nDataLen) {
-    BYTE i = 0;
-    unsigned int j = 0;
-    short diffVal = 0;
-    BYTE acLen = 0;
-    short sigBuf[DCTBLOCKSIZE];
-    ACSYM acSym[DCTBLOCKSIZE];
+/**
+ * todo 找代码对找下对8*8的的矩阵进行编码，进行的操作有离散余弦变换，量化，Zigzag，赫夫曼编码，
+ */
+int encodeOne8x8Block(JPEGINFO *pJpgInfo, float *lpBuf, float *quantTab, HUFFCODE *dcHuffTab,
+                      HUFFCODE *acHuffTab, short *DC, BYTE *pOut, int nDataLen) {
+    BYTE i = 0;                //
+    BYTE acLen = 0;            // 熵编码后AC中间符号的数量
+    short diffVal = 0;         // DC差异值
+    unsigned int j = 0;        //
+    short sigBuf[DCTBLOCKSIZE];//量化后信号缓冲
+    ACSYM acSym[DCTBLOCKSIZE]; //AC中间符号缓冲
 
+    // 快速离散余弦变换
     fastDCT(lpBuf);
 
+    // 量化与Zigzag排练。 todo +16384.5-16384是为了什么
     for (i = 0; i < DCTBLOCKSIZE; i++) {
         sigBuf[ZigZagTable[i]] = (short) ((lpBuf[i] * quantTab[i] + 16384.5) - 16384);
     }
 
+    //---------------------------DC编码---------------------------------
+    //DPCM编码, 左上角为DC直流分量
     diffVal = sigBuf[0] - *DC;
     *DC = sigBuf[0];
-
+    //搜索Huffman表，写入相应的码字
     if (diffVal == 0) {
         nDataLen = writeBitsHuffmanCode(pJpgInfo, dcHuffTab[0], pOut, nDataLen);
-    }
-    else {
-        nDataLen = writeBitsHuffmanCode(pJpgInfo, dcHuffTab[pJpgInfo->pVLITAB[diffVal]], pOut,
-                                        nDataLen);
+    } else {
+        nDataLen = writeBitsHuffmanCode(
+                pJpgInfo, dcHuffTab[pJpgInfo->pVLITAB[diffVal]], pOut, nDataLen);
         nDataLen = writeBitsAmplitude(pJpgInfo, buildSym2(diffVal), pOut, nDataLen);
     }
 
-    for (i = 63; (i > 0) && (sigBuf[i] == 0); i--) {
-
-    }
+    //---------------------------AC编码---------------------------------
+    // 判断AC信号是否全0
+    for (i = 63; (i > 0) && (sigBuf[i] == 0); i--);
 
     if (i == 0) {
+        // 全为零，直接写入块结束标志
         nDataLen = writeBitsHuffmanCode(pJpgInfo, acHuffTab[0x00], pOut, nDataLen);
-    }
-    else {
+    } else {
+        // 对AC运行长度编码
         RLEComp(sigBuf, &acSym[0], &acLen);
+        // 依次对AC中间符号Huffman编码
         for (j = 0; j < acLen; j++) {
             if (acSym[j].codeLen == 0) {
-                nDataLen = writeBitsHuffmanCode(pJpgInfo, acHuffTab[0xF0], pOut, nDataLen);
+                nDataLen = writeBitsHuffmanCode(pJpgInfo,
+                                                acHuffTab[0xF0],
+                                                pOut, nDataLen);//写入(15,0)
             }
             else {
                 nDataLen = writeBitsHuffmanCode(pJpgInfo,
                                                 acHuffTab[acSym[j].zeroLen * 16 + acSym[j].codeLen],
                                                 pOut, nDataLen);
-                nDataLen = writeBitsAmplitude(pJpgInfo, buildSym2(acSym[j].amplitude), pOut,
-                                              nDataLen);
+                nDataLen = writeBitsAmplitude(pJpgInfo,
+                                              buildSym2(acSym[j].amplitude),
+                                              pOut, nDataLen);
             }
         }
         if (i != 63) {
+            //最后一位为0的话需要写入EOB
             nDataLen = writeBitsHuffmanCode(pJpgInfo, acHuffTab[0x00], pOut, nDataLen);
         }
     }
@@ -686,7 +700,7 @@ int ProcessDU(JPEGINFO *pJpgInfo, float *lpBuf, float *quantTab, HUFFCODE *dcHuf
 }
 
 /**
- * 开始编码:先分块，再偏移128，再分别处理YUV通道
+ * 开始编码:先分块，再偏移128，再分别处理YUV通道的每一方块
  */
 int startEncode(JPEGINFO *pJpgInfo, BYTE *lpYBuf, BYTE *lpUBuf, BYTE *lpVBuf,
                 int width, int height, BYTE *pOut, int nDataLen) {
@@ -719,12 +733,12 @@ int startEncode(JPEGINFO *pJpgInfo, BYTE *lpYBuf, BYTE *lpUBuf, BYTE *lpVBuf,
         /**
          * 分别处理YUV三通道的小色块（8*8）
          */
-        nDataLen = ProcessDU(pJpgInfo, dctYBuf, pJpgInfo->YQT_DCT, pJpgInfo->STD_DC_Y_HT,
-                             pJpgInfo->STD_AC_Y_HT, &yDC, pOut, nDataLen);
-        nDataLen = ProcessDU(pJpgInfo, dctUBuf, pJpgInfo->UVQT_DCT, pJpgInfo->STD_DC_UV_HT,
-                             pJpgInfo->STD_AC_UV_HT, &uDC, pOut, nDataLen);
-        nDataLen = ProcessDU(pJpgInfo, dctVBuf, pJpgInfo->UVQT_DCT, pJpgInfo->STD_DC_UV_HT,
-                             pJpgInfo->STD_AC_UV_HT, &vDC, pOut, nDataLen);
+        nDataLen = encodeOne8x8Block(pJpgInfo, dctYBuf, pJpgInfo->YQT_DCT, pJpgInfo->STD_DC_Y_HT,
+                                     pJpgInfo->STD_AC_Y_HT, &yDC, pOut, nDataLen);
+        nDataLen = encodeOne8x8Block(pJpgInfo, dctUBuf, pJpgInfo->UVQT_DCT, pJpgInfo->STD_DC_UV_HT,
+                                     pJpgInfo->STD_AC_UV_HT, &uDC, pOut, nDataLen);
+        nDataLen = encodeOne8x8Block(pJpgInfo, dctVBuf, pJpgInfo->UVQT_DCT, pJpgInfo->STD_DC_UV_HT,
+                                     pJpgInfo->STD_AC_UV_HT, &vDC, pOut, nDataLen);
 
     }
     return nDataLen;
@@ -735,7 +749,7 @@ int startEncode(JPEGINFO *pJpgInfo, BYTE *lpYBuf, BYTE *lpUBuf, BYTE *lpVBuf,
  * http://blog.chinaunix.net/uid-23065002-id-3999981.html
  */
 int YUV2Jpg(BYTE *in_Y, BYTE *in_U, BYTE *in_V, int width, int height, int nStride,
-            int quality, BYTE *pOut, unsigned long *pnOutSize) {
+            int quality, BYTE *pOut, int *pnOutSize) {
 
     //LOGI("start");
     BYTE *pYBuf = in_Y;
