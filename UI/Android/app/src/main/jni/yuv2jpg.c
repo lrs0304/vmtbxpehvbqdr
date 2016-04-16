@@ -60,7 +60,9 @@ void scaleSTDQuantizationTable(BYTE *y_QuantizationTable, BYTE *uv_QuantizationT
     int i;
     for (i = 0; i < DCTBLOCKSIZE; ++i) {
         // Y 亮度量化表
-        tmpVal = (STD_Y_Quantization_Table[i] * quality + 50) / 100;
+        tmpVal = STD_Y_Quantization_Table[i] * quality;
+        tmpVal = (tmpVal + (tmpVal >> 2) + 64) >> 7;
+        //(STD_Y_Quantization_Table[i] * quality + 50) / 100 = 1.28A+64/128=1.25A/128;
         if (tmpVal < 1) {
             tmpVal = 1;
         } else if (tmpVal > 0xFF) {
@@ -69,7 +71,9 @@ void scaleSTDQuantizationTable(BYTE *y_QuantizationTable, BYTE *uv_QuantizationT
         y_QuantizationTable[ZigZagTable[i]] = (BYTE) tmpVal;
 
         // UV色差量化表
-        tmpVal = (STD_UV_Quantization_Table[i] * quality + 50) / 100;
+        tmpVal = STD_UV_Quantization_Table[i] * quality;
+        tmpVal = (tmpVal + (tmpVal >> 2) + 64) >> 7;
+        //(STD_UV_Quantization_Table[i] * quality + 50) / 100;
         if (tmpVal < 1) {
             tmpVal = 1;
         } else if (tmpVal > 0xFF) {
@@ -631,7 +635,7 @@ void fastDCT(float *lpBuff) {
  */
 int encodeOne8x8Block(JPEGINFO *pJpgInfo, float *lpBuf, float *quantTab, HUFFCODE *dcHuffTab,
                       HUFFCODE *acHuffTab, short *DC, BYTE *pOut, int nDataLen) {
-    BYTE i = 0;                //
+    BYTE i = 0;
     BYTE acLen = 0;            // 熵编码后AC中间符号的数量
     short diffVal = 0;         // DC差异值
     unsigned int j = 0;        //
