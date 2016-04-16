@@ -12,7 +12,7 @@ void divBufferInto8x8Matrix(BYTE *pBuf, int width, int height, int nStride) {
     int xBufs = width >> stepBits;     // width / xLen
     int yBufs = height >> stepBits;    // height / yLen;
     size_t tmpBufLen = (size_t) width << stepBits; //xBufs * xLen * yLen
-    BYTE *tmpBuf = (BYTE *) malloc(tmpBufLen);
+    BYTE *tmpBuf = (BYTE *) malloc(tmpBufLen);//malloc malloc在堆，需要的时候申请，数组在栈
 
     int hIndex, wIndex;
     int k;
@@ -555,7 +555,7 @@ void fastDCT(float *lpBuff) {
         dataPtr[0] = tmp10 + tmp11; /* phase 3 */
         dataPtr[4] = tmp10 - tmp11;
 
-        z1 = (float) ((tmp12 + tmp13) * (0.707106781)); /* c4 */
+        z1 = 0.707106781f * (tmp12 + tmp13); /* c4 */
         dataPtr[2] = tmp13 + z1; /* phase 5 */
         dataPtr[6] = tmp13 - z1;
 
@@ -564,10 +564,10 @@ void fastDCT(float *lpBuff) {
         tmp11 = tmp5 + tmp6;
         tmp12 = tmp6 + tmp7;
 
-        z5 = (float) ((tmp10 - tmp12) * (0.382683433)); /* c6 */
-        z2 = (float) ((0.541196100) * tmp10 + z5); /* c2-c6 */
-        z4 = (float) ((1.306562965) * tmp12 + z5); /* c2+c6 */
-        z3 = (float) (tmp11 * (0.707106781)); /* c4 */
+        z5 = 0.382683433f * (tmp10 - tmp12); /* c6 */
+        z2 = 0.541196100f * tmp10 + z5; /* c2-c6 */
+        z4 = 1.306562965f * tmp12 + z5; /* c2+c6 */
+        z3 = 0.707106781f * tmp11; /* c4 */
 
         z11 = tmp7 + z3;
         z13 = tmp7 - z3;
@@ -601,7 +601,7 @@ void fastDCT(float *lpBuff) {
         dataPtr[DCTSIZE * 0] = tmp10 + tmp11; /* phase 3 */
         dataPtr[DCTSIZE * 4] = tmp10 - tmp11;
 
-        z1 = (float) ((tmp12 + tmp13) * (0.707106781)); /* c4 */
+        z1 = 0.707106781f * (tmp12 + tmp13); /* c4 */
         dataPtr[DCTSIZE * 2] = tmp13 + z1; /* phase 5 */
         dataPtr[DCTSIZE * 6] = tmp13 - z1;
 
@@ -610,10 +610,10 @@ void fastDCT(float *lpBuff) {
         tmp11 = tmp5 + tmp6;
         tmp12 = tmp6 + tmp7;
 
-        z5 = (float) ((tmp10 - tmp12) * (0.382683433)); /* c6 */
-        z2 = (float) ((0.541196100) * tmp10 + z5); /* c2-c6 */
-        z4 = (float) ((1.306562965) * tmp12 + z5); /* c2+c6 */
-        z3 = (float) (tmp11 * (0.707106781)); /* c4 */
+        z5 = 0.382683433f * (tmp10 - tmp12); /* c6 */
+        z2 = 0.541196100f * tmp10 + z5; /* c2-c6 */
+        z4 = 1.306562965f * tmp12 + z5; /* c2+c6 */
+        z3 = 0.707106781f * tmp11; /* c4 */
 
         z11 = tmp7 + z3;  /* phase 5 */
         z13 = tmp7 - z3;
