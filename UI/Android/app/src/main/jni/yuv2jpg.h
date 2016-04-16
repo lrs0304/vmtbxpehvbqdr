@@ -15,7 +15,7 @@
 
 typedef uint8_t BYTE;
 #define  MY_TAG    "Legao Server Native"
-//#define _ANDROID__
+#define _ANDROID__
 
 #ifdef _ANDROID__
 

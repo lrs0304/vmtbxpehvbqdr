@@ -41,7 +41,7 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
     private static final String CAPTURE_URL = "/video/capture.jpg";
     private static final String VIDEO_STREAM_URL = "/video/live.mjpg";
 
-    private static final int COMPRESS_QUALITY = 75;
+    private static final int COMPRESS_QUALITY = 60;
 
     private int mPictureWidth = 480;
     private int mPictureHeight = 360;

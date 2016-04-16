@@ -3,7 +3,7 @@
 //// 声明使用C++编程
 //#define __cplusplus
 
-//#define _ANDROID__
+#define _ANDROID__
 
 extern "C" {
 #include "yuv2jpg.h"
