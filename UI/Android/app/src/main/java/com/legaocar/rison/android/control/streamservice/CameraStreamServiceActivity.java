@@ -97,7 +97,6 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
         if (mCameraView != null) {
             mPreviewLock.lock();
             mCameraView.StartPreview();
-            mCameraView.AutoFocus();
             mPreviewLock.unlock();
         }
     }
@@ -138,7 +137,6 @@ public class CameraStreamServiceActivity extends AppCompatActivity implements Ca
         mCameraView.StopPreview();
         mCameraView.setupCamera(mPictureWidth, mPictureHeight, 4, 25.0, previewCallBack);
         mCameraView.StartPreview();
-        mCameraView.AutoFocus();
     }
 
     private void initViews() {

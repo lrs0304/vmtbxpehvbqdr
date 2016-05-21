@@ -3,7 +3,7 @@ package com.legaocar.rison.android.control.streamservice;
 import android.graphics.ImageFormat;
 import android.graphics.PixelFormat;
 import android.hardware.Camera;
-import android.hardware.Camera.AutoFocusCallback;
+import android.hardware.Camera.Parameters;
 import android.hardware.Camera.PreviewCallback;
 import android.view.SurfaceHolder;
 import android.view.SurfaceHolder.Callback;
@@ -59,6 +59,17 @@ public class CameraView implements Callback {
     public void StartPreview() {
         if (camera_ == null)
             return;
+
+        Camera.Parameters p = camera_.getParameters();
+        //注意 这里需要判断是否支持这种对焦模式 否则会导致setParameters异常
+        List<String> focusModes = p.getSupportedFocusModes();
+        if (focusModes.contains(Parameters.FOCUS_MODE_CONTINUOUS_VIDEO)) {
+            p.setFocusMode(Parameters.FOCUS_MODE_CONTINUOUS_VIDEO);
+        } else {
+            p.setFocusMode(Parameters.FOCUS_MODE_AUTO); // 自动对焦
+        }
+        camera_.setParameters(p);
+
         camera_.startPreview();
     }
 
@@ -66,12 +77,6 @@ public class CameraView implements Callback {
         if (camera_ == null)
             return;
         camera_.stopPreview();
-    }
-
-    public void AutoFocus() {
-        if (camera_ != null) {
-            camera_.autoFocus(afcb);
-        }
     }
 
     public void Release() {
@@ -147,12 +152,6 @@ public class CameraView implements Callback {
         camera_.startPreview();
     }
 
-    private AutoFocusCallback afcb = new AutoFocusCallback() {
-        @Override
-        public void onAutoFocus(boolean success, Camera camera) {
-        }
-    };
-
     @Override
     public void surfaceChanged(SurfaceHolder sh, int format, int w, int h) {
     }
@@ -168,4 +167,5 @@ public class CameraView implements Callback {
     public void surfaceDestroyed(SurfaceHolder sh) {
         Release();
     }
+
 }
